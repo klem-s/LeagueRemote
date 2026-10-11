@@ -35,7 +35,7 @@ func (s *Server) handleAPIGet(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, 200, data)
 	default:
-		writeJSON(w, 404, map[string]interface{}{"error": "introuvable"})
+		writeJSON(w, 404, map[string]interface{}{"error": "not found"})
 	}
 }
 
@@ -145,7 +145,7 @@ func (s *Server) handleAPIPost(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]interface{}{"ok": true, "page": name})
 
 	default:
-		writeJSON(w, 404, map[string]interface{}{"error": "introuvable"})
+		writeJSON(w, 404, map[string]interface{}{"error": "not found"})
 	}
 }
 

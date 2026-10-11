@@ -59,7 +59,7 @@ func readCredsFromLockfile(path string) (*creds, error) {
 	}
 	parts := strings.Split(strings.TrimSpace(string(data)), ":")
 	if len(parts) < 4 {
-		return nil, errors.New("lockfile invalide")
+		return nil, errors.New("invalid lockfile")
 	}
 	return &creds{port: parts[2], pass: parts[3]}, nil
 }
@@ -78,7 +78,7 @@ func readCredsFromProcess() (*creds, error) {
 	pm := portRe.FindStringSubmatch(s)
 	tm := tokenRe.FindStringSubmatch(s)
 	if pm == nil || tm == nil {
-		return nil, errors.New("client League introuvable")
+		return nil, errors.New("League client not found")
 	}
 	return &creds{port: pm[1], pass: tm[1]}, nil
 }
@@ -107,7 +107,7 @@ func (c *Client) request(method, path string, body interface{}, raw bool) (inter
 		c.mu.Unlock()
 
 		if cr == nil {
-			return nil, nil, errors.New("Client League introuvable")
+			return nil, nil, errors.New("League client not found")
 		}
 
 		var reqBody io.Reader
@@ -125,7 +125,7 @@ func (c *Client) request(method, path string, body interface{}, raw bool) (inter
 
 		resp, err := c.http.Do(req)
 		if err != nil {
-			lastErr = errors.New("client League injoignable")
+			lastErr = errors.New("League client unreachable")
 			c.mu.Lock()
 			c.creds = nil
 			c.mu.Unlock()

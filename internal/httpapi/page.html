@@ -112,6 +112,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
   border:1px solid var(--red);padding:10px 14px;color:#ffd6d6;display:none;z-index:9}
 .toast.ok{background:#0d2b2b;border-color:var(--teal);color:#c9fff9}
 [hidden]{display:none!important}
+.ver{position:fixed;left:8px;bottom:4px;font-size:10px;color:var(--muted);opacity:.6;z-index:1}
 </style>
 </head>
 <body>
@@ -173,6 +174,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 </footer>
 
 <div class="toast" id="toast"></div>
+<div class="ver">__VERSION__</div>
 
 <script>
 const $ = id => document.getElementById(id);

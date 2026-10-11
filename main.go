@@ -82,7 +82,7 @@ func main() {
 	svc := league.NewService(lcu.New())
 	go svc.Watch()
 
-	server := httpapi.NewServer(svc, pin)
+	server := httpapi.NewServer(svc, pin, version)
 	go func() {
 		if err := http.Serve(listener, server.Handler()); err != nil {
 			trayui.ReportFatal(fmt.Sprintf("Server error: %v", err))
@@ -90,7 +90,5 @@ func main() {
 		}
 	}()
 
-	update := checkForUpdate()
-
-	trayui.Run(pin, url, update)
+	trayui.Run(trayui.Info{PIN: pin, URL: url, Version: version, Update: checkForUpdate()})
 }

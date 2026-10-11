@@ -7,15 +7,15 @@ package trayui
 
 import "fmt"
 
-func Run(pin, url string, update Update) {
+func Run(info Info) {
 	fmt.Println()
-	fmt.Println("  LoL Remote started")
-	fmt.Println("  On your phone:", url)
-	fmt.Println("  PIN code     :", pin)
+	fmt.Println("  LoL Remote started", info.Version)
+	fmt.Println("  On your phone:", info.URL)
+	fmt.Println("  PIN code     :", info.PIN)
 	fmt.Println()
 	fmt.Println("  (Ctrl+C to stop)")
-	if update.Tag != "" {
-		fmt.Println("  Update available:", update.Tag, update.URL)
+	if info.Update.Tag != "" {
+		fmt.Println("  Update available:", info.Update.Tag, info.Update.URL)
 	}
 	select {}
 }

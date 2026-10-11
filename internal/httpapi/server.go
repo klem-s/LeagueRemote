@@ -22,12 +22,13 @@ var pageHTML string
 // Server holds everything the HTTP layer needs: the use-case service, the
 // PIN phones must present on /api/*, and the embedded mobile page.
 type Server struct {
-	svc *league.Service
-	pin string
+	svc     *league.Service
+	pin     string
+	version string
 }
 
-func NewServer(svc *league.Service, pin string) *Server {
-	return &Server{svc: svc, pin: pin}
+func NewServer(svc *league.Service, pin, version string) *Server {
+	return &Server{svc: svc, pin: pin, version: version}
 }
 
 func (s *Server) checkPin(r *http.Request) bool {
@@ -79,12 +80,13 @@ func (s *Server) serveAsset(w http.ResponseWriter, p string) {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
+	page := strings.ReplaceAll(pageHTML, "__VERSION__", s.version)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		writeBytes(w, 200, "text/html; charset=utf-8", []byte(pageHTML), false)
+		writeBytes(w, 200, "text/html; charset=utf-8", []byte(page), false)
 	})
 
 	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +120,7 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		if !s.checkPin(r) {
-			writeJSON(w, 401, map[string]interface{}{"error": "PIN incorrect"})
+			writeJSON(w, 401, map[string]interface{}{"error": "Incorrect PIN"})
 			return
 		}
 		switch r.Method {
@@ -127,7 +129,7 @@ func (s *Server) Handler() http.Handler {
 		case http.MethodPost:
 			s.handleAPIPost(w, r)
 		default:
-			writeJSON(w, 404, map[string]interface{}{"error": "introuvable"})
+			writeJSON(w, 404, map[string]interface{}{"error": "not found"})
 		}
 	})
 

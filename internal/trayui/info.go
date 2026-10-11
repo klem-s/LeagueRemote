@@ -6,3 +6,11 @@ type Update struct {
 	Tag string // e.g. "v0.3.0"
 	URL string // release page to open
 }
+
+// Info is everything the tray UI needs to display.
+type Info struct {
+	PIN     string
+	URL     string
+	Version string // "dev" for local builds; see main.version
+	Update  Update
+}

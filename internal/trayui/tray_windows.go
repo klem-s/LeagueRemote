@@ -31,15 +31,19 @@ var popupOpenMu sync.Mutex
 var popupOpen bool
 
 // Run shows the tray icon and blocks forever running its message loop.
-func Run(pin, url string, update Update) {
-	systray.Run(func() { onReady(pin, url, update) }, func() {})
+func Run(info Info) {
+	systray.Run(func() { onReady(info) }, func() {})
 }
 
-func onReady(pin, url string, update Update) {
+func onReady(info Info) {
 	systray.SetIcon(icon.ICO(32))
 	systray.SetTitle("LoL Remote")
-	tooltip := "LoL Remote — PIN " + pin
-	if update.Tag != "" {
+	tooltip := "LoL Remote"
+	if info.Version != "" && info.Version != "dev" {
+		tooltip += " " + info.Version
+	}
+	tooltip += " — PIN " + info.PIN
+	if info.Update.Tag != "" {
 		tooltip += " (update available)"
 	}
 	systray.SetTooltip(tooltip)
@@ -50,12 +54,12 @@ func onReady(pin, url string, update Update) {
 
 	// Shown immediately at launch: the user shouldn't have to guess that
 	// the tray menu is where the PIN lives.
-	showPopup(pin, url, update)
+	showPopup(info)
 
 	for {
 		select {
 		case <-show.ClickedCh:
-			showPopup(pin, url, update)
+			showPopup(info)
 		case <-quit.ClickedCh:
 			systray.Quit()
 			os.Exit(0)
@@ -67,7 +71,7 @@ func onReady(pin, url string, update Update) {
 // windows are thread-affine: creation and message loop must share a
 // thread). Falls back to a plain MessageBox if WebView2 isn't available —
 // e.g. an unmaintained Windows install without the Evergreen runtime.
-func showPopup(pin, url string, update Update) {
+func showPopup(info Info) {
 	popupOpenMu.Lock()
 	if popupOpen {
 		popupOpenMu.Unlock()
@@ -93,9 +97,9 @@ func showPopup(pin, url string, update Update) {
 			},
 		})
 		if w == nil {
-			text := fmt.Sprintf("Address: %s\nPIN code: %s", url, pin)
-			if update.Tag != "" {
-				text += fmt.Sprintf("\n\nUpdate available: %s\n%s", update.Tag, update.URL)
+			text := fmt.Sprintf("Address: %s\nPIN code: %s", info.URL, info.PIN)
+			if info.Update.Tag != "" {
+				text += fmt.Sprintf("\n\nUpdate available: %s\n%s", info.Update.Tag, info.Update.URL)
 			}
 			messageBox("LoL Remote", text)
 			return
@@ -113,30 +117,31 @@ func showPopup(pin, url string, update Update) {
 		// navigating the popup itself away from its own content.
 		_ = w.Bind("openurl", func(target string) { _ = exec.Command("cmd", "/c", "start", "", target).Start() })
 
-		w.SetHtml(renderPopup(pin, url, update))
+		w.SetHtml(renderPopup(info))
 		w.Run()
 	}()
 }
 
-func renderPopup(pin, url string, update Update) string {
+func renderPopup(info Info) string {
 	// The QR encodes the PIN too (?pin=...), so scanning it logs straight
 	// in instead of making the player type the PIN by hand.
 	qrB64 := ""
-	if png, err := qrcode.Encode(url+"?pin="+neturl.QueryEscape(pin), qrcode.Medium, 220); err == nil {
+	if png, err := qrcode.Encode(info.URL+"?pin="+neturl.QueryEscape(info.PIN), qrcode.Medium, 220); err == nil {
 		qrB64 = base64.StdEncoding.EncodeToString(png)
 	}
 	updateBlock := ""
-	if update.Tag != "" {
+	if info.Update.Tag != "" {
 		updateBlock = fmt.Sprintf(
 			`<button class="update" onclick="window.openurl('%s')">Update available: %s</button>`,
-			strings.ReplaceAll(update.URL, "'", ""), update.Tag,
+			strings.ReplaceAll(info.Update.URL, "'", ""), info.Update.Tag,
 		)
 	}
 	html := popupTemplate
-	html = strings.ReplaceAll(html, "__URL__", url)
-	html = strings.ReplaceAll(html, "__PIN__", pin)
+	html = strings.ReplaceAll(html, "__URL__", info.URL)
+	html = strings.ReplaceAll(html, "__PIN__", info.PIN)
 	html = strings.ReplaceAll(html, "__QR__", qrB64)
 	html = strings.ReplaceAll(html, "__UPDATE__", updateBlock)
+	html = strings.ReplaceAll(html, "__VERSION__", info.Version)
 	return html
 }
 
