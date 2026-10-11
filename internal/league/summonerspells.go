@@ -1,12 +1,14 @@
 package league
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
-// SummonerSpells returns every summoner spell from the game-data file,
-// cached for the life of the service. Unlike Champions(), this isn't
-// filtered down to what's valid for the current queue/game mode — that
-// isn't exposed anywhere obvious, so an invalid pick here is expected to
-// surface as a real error from SetSpells instead of being guessed at.
+// SummonerSpells returns the spells valid on Summoner's Rift (ranked,
+// normals, etc.) — filtered using each entry's own gameModes list rather
+// than a hardcoded ID allowlist, so ARAM-only (Mark), Arena-only and other
+// special-mode spells are excluded. Cached for the life of the service.
 func (s *Service) SummonerSpells() ([]SummonerSpell, error) {
 	s.spellsMu.Lock()
 	defer s.spellsMu.Unlock()
@@ -23,7 +25,7 @@ func (s *Service) SummonerSpells() ([]SummonerSpell, error) {
 		c := asMap(item)
 		id := asInt(c["id"])
 		name := asString(c["name"])
-		if id <= 0 || name == "" {
+		if id <= 0 || name == "" || !hasGameMode(c, "CLASSIC") {
 			continue
 		}
 		// The actual iconPath from the data, same as Perk/Style icons in
@@ -33,6 +35,18 @@ func (s *Service) SummonerSpells() ([]SummonerSpell, error) {
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	s.spellsCache = out
 	return out, nil
+}
+
+// hasGameMode checks a game-data entry's own "gameModes" list — "CLASSIC"
+// is Summoner's Rift (covers ranked, normals, quickplay), which is what
+// excludes ARAM-only (e.g. Mark), Arena-only and other special-mode spells.
+func hasGameMode(c map[string]interface{}, mode string) bool {
+	for _, m := range asList(c["gameModes"]) {
+		if strings.EqualFold(asString(m), mode) {
+			return true
+		}
+	}
+	return false
 }
 
 // SetSpells assigns both summoner spell slots at once — the LCU's

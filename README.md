@@ -48,7 +48,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 - Request, receive, accept or decline a swap with a teammate — champion, position (lane/role) or pick order — via a small icon on their portrait, pulsing when they've sent you a request.
 - Phase timer, turns red under 10 seconds.
 - Draft overview: ally picks and hovers (hover shown translucent), enemy picks, both teams' bans, roles, and a highlight on whoever is currently picking. Names only show when the client provides them (Riot hides them in ranked).
-- Summoner spell selection: two slots (D/F) above the champion grid; tapping one opens the same icon-grid picker style as champion selection, filtered so you can't pick the same spell twice.
+- Summoner spell selection: two slots (D/F) above the champion grid; tapping one opens the same icon-grid picker style as champion selection, filtered so you can't pick the same spell twice. The list itself is filtered to Summoner's Rift (`gameModes` includes `CLASSIC`), so ARAM-only (Mark) and Arena-only spells don't show up.
 
 **In game**
 - Once the match itself starts, the app shows a live match clock plus your own live KDA, CS and CS/min, instead of a stale champ-select screen.
@@ -131,7 +131,7 @@ git push origin v1.0.0
 - The LCU isn't an official API: endpoints can change after a patch.
 - The in-game clock and live KDA/CS use a *different* local server than the LCU: the Live Client Data API at `127.0.0.1:2999` (unauthenticated, only reachable while a match is actually running), not `127.0.0.1:<lcu-port>`. The endpoint itself (`/liveclientdata/allgamedata`) is officially documented by Riot, so it's high-confidence — but which field identifies "me" among `allPlayers` isn't part of that documentation, so it's matched defensively by Riot ID (`riotIdGameName#riotIdTagLine`, falling back to the legacy `summonerName`), the same pattern this app has already had to apply to champ-select data.
 - `champion-summary.json` contains special-mode variants sharing a name with a different ID; the smallest ID per name is kept.
-- The summoner spell list (`summoner-spells.json`) isn't filtered by queue/game mode — that isn't exposed anywhere obvious — so a spell invalid for the current match is expected to surface as a real LCU error (toast) from `/lol-champ-select/v1/session/my-selection` rather than being guessed at and hidden client-side.
+- The summoner spell list is filtered to Summoner's Rift via each entry's own `gameModes` field (must include `CLASSIC`) — real data, not a hardcoded ID allowlist. It isn't further narrowed per-queue (e.g. Smite still shows outside jungle-eligible modes), so a spell invalid for the current match specifically is expected to surface as a real LCU error (toast) from `/lol-champ-select/v1/session/my-selection`.
 - During a ban, the allowed-champion list is computed server-side (everything except already-banned or locked-in champions), since `bannable-champion-ids` isn't reliable.
 - On some client versions, editing a page (`PUT`) fails: the page is then deleted and recreated.
 - Over `http` on Wi-Fi, the PIN travels in the clear on the local network. Don't expose the port directly to the Internet.

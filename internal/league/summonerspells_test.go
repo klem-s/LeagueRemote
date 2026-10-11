@@ -3,14 +3,17 @@ package league
 import "testing"
 
 func TestSummonerSpellsFiltersAndSorts(t *testing.T) {
+	classic := []interface{}{"CLASSIC"}
 	client := &fakeClient{
 		responses: map[string]interface{}{
 			"/lol-game-data/assets/v1/summoner-spells.json": []interface{}{
-				map[string]interface{}{"id": float64(4), "name": "Flash"},
-				map[string]interface{}{"id": float64(11), "name": "Smite"},
-				map[string]interface{}{"id": float64(0), "name": "Unselectable"}, // id<=0: dropped
-				map[string]interface{}{"id": float64(99), "name": ""},            // no name: dropped
-				map[string]interface{}{"id": float64(14), "name": "Ignite"},
+				map[string]interface{}{"id": float64(4), "name": "Flash", "gameModes": classic},
+				map[string]interface{}{"id": float64(11), "name": "Smite", "gameModes": classic},
+				map[string]interface{}{"id": float64(0), "name": "Unselectable", "gameModes": classic},            // id<=0: dropped
+				map[string]interface{}{"id": float64(99), "name": "", "gameModes": classic},                       // no name: dropped
+				map[string]interface{}{"id": float64(32), "name": "Mark", "gameModes": []interface{}{"ARAM"}},     // not CLASSIC: dropped
+				map[string]interface{}{"id": float64(2202), "name": "Flee", "gameModes": []interface{}{"CHERRY"}}, // Arena: dropped
+				map[string]interface{}{"id": float64(14), "name": "Ignite", "gameModes": classic},
 			},
 		},
 	}
