@@ -372,13 +372,13 @@ function renderBar(){
     : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
-  // Confirmed by live testing: pre-picking a future pick action is
-  // rejected by the LCU until every ban has resolved (not about
-  // timer.phase, an earlier guess that didn't hold up) — bans stay
-  // turn-only, no evidence those can be pre-selected at all.
-  const canPreview = !isBan && st?.select?.bansDone;
+  // No client-side gating here on purpose: two guesses at when this is
+  // allowed (PLANNING phase, then "after all bans") were both wrong, and
+  // each one disabled the button and hid the real LCU response. Always
+  // enabled now, for picks and bans alike — whatever the LCU actually
+  // says back (success or a real error) is the only reliable signal left.
   $("hoverBtn").textContent = (a && !a.inProgress) ? "Preview" : "Hover";
-  $("hoverBtn").disabled = !a || !chosen || (!a.inProgress && !canPreview);
+  $("hoverBtn").disabled = !a || !chosen;
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
 }
 

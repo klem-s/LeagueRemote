@@ -37,20 +37,6 @@ func actions(s map[string]interface{}) []map[string]interface{} {
 	return out
 }
 
-// bansDone reports whether every ban action (either team, completed or
-// still queued) has resolved. Confirmed by direct testing: pre-picking a
-// future pick action is rejected by the LCU while any ban — including an
-// enemy one not yet started — is still pending, and starts working the
-// moment all of them are done. Not about timer.phase at all.
-func bansDone(acts []map[string]interface{}) bool {
-	for _, a := range acts {
-		if asString(a["type"]) == "ban" && !asBool(a["completed"]) {
-			return false
-		}
-	}
-	return true
-}
-
 // buildTeams assembles picks, hovers and bans for both teams.
 func buildTeams(s map[string]interface{}) Teams {
 	me := asInt(s["localPlayerCellId"])
@@ -183,19 +169,12 @@ func (s *Service) State() StateResult {
 		}
 	}
 	timer := asMap(sess["timer"])
-	acts := actions(sess)
 
 	sel := &SelectState{
 		TimeLeft:       asInt(timer["adjustedTimeLeftInPhase"]) / 1000,
 		LockedChampion: asInt(myCell["championId"]),
-		// Confirmed by direct testing (not a session-shape guess): the LCU
-		// rejects a hover on a future pick action while any ban — even an
-		// enemy one not yet underway — is still pending, and allows it the
-		// moment every ban has resolved. Gates the mobile page's
-		// pre-pick/"Preview" button.
-		BansDone: bansDone(acts),
-		Allowed:  []int{},
-		Teams:    buildTeams(sess),
+		Allowed:        []int{},
+		Teams:          buildTeams(sess),
 	}
 
 	if a := myAction(sess); a != nil {
