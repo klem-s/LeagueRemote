@@ -172,8 +172,8 @@ func (s *Service) State() StateResult {
 	phase := asString(phaseRaw)
 	result := StateResult{Connected: true, Phase: phase, AutoAccept: s.AutoAccept()}
 	if phase == "InProgress" {
-		if t, err := s.client.GameTime(); err == nil {
-			result.GameTime = t
+		if raw, err := s.client.LiveGameData(); err == nil {
+			result.Live = parseLiveStats(raw)
 		}
 		return result
 	}

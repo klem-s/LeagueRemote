@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"lolremote/internal/league"
 )
@@ -30,17 +29,6 @@ func (s *Server) handleAPIGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, data)
 	case "/api/runes/recommended":
 		data, err := s.svc.Recommended()
-		if err != nil {
-			writeJSON(w, 503, errJSON(err))
-			return
-		}
-		writeJSON(w, 200, data)
-	case "/api/stats":
-		count := 0
-		if v := r.URL.Query().Get("count"); v != "" {
-			count, _ = strconv.Atoi(v)
-		}
-		data, err := s.svc.Stats(count)
 		if err != nil {
 			writeJSON(w, 503, errJSON(err))
 			return

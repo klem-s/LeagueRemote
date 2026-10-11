@@ -41,6 +41,16 @@ func asInt(v interface{}) int {
 	return 0
 }
 
+func asFloat(v interface{}) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	}
+	return 0
+}
+
 func toIntSlice(v interface{}) []int {
 	out := []int{}
 	for _, x := range asList(v) {

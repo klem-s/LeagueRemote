@@ -189,31 +189,31 @@ func (c *Client) Raw(path string) ([]byte, error) {
 	return raw, err
 }
 
-// GameTime hits the Live Client Data API (127.0.0.1:2999), a separate local
-// server the game process itself exposes while a match is in progress — no
-// auth token, not the LCU, so it bypasses request()/creds entirely.
-func (c *Client) GameTime() (float64, error) {
-	req, err := http.NewRequest("GET", "https://127.0.0.1:2999/liveclientdata/gamestats", nil)
+// LiveGameData hits the Live Client Data API (127.0.0.1:2999), a separate
+// local server the game process itself exposes while a match is in
+// progress — no auth token, not the LCU, so it bypasses request()/creds
+// entirely. allgamedata is a single request for the match clock plus every
+// player's live champion/level/KDA/CS, rather than separate calls.
+func (c *Client) LiveGameData() (interface{}, error) {
+	req, err := http.NewRequest("GET", "https://127.0.0.1:2999/liveclientdata/allgamedata", nil)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return 0, errors.New("game not in progress")
+		return nil, errors.New("game not in progress")
 	}
 	defer resp.Body.Close()
 	content, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
-		return 0, &league.RemoteError{Code: resp.StatusCode, Body: content}
+		return nil, &league.RemoteError{Code: resp.StatusCode, Body: content}
 	}
-	var v struct {
-		GameTime float64 `json:"gameTime"`
-	}
+	var v interface{}
 	if err := json.Unmarshal(content, &v); err != nil {
-		return 0, err
+		return nil, err
 	}
-	return v.GameTime, nil
+	return v, nil
 }
 
 var _ league.Client = (*Client)(nil)

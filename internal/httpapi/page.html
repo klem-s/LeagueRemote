@@ -31,6 +31,10 @@ header{padding:14px 16px 10px;display:flex;align-items:center;justify-content:sp
 .timer{font:400 34px Marcellus,Georgia,serif;color:var(--gold-hi);min-width:2ch;text-align:right}
 .timer.low{color:var(--red)}
 .clock{font:400 48px Marcellus,Georgia,serif;color:var(--gold-hi);font-variant-numeric:tabular-nums;margin:0}
+.liveGrid{display:flex;gap:22px;justify-content:center;margin-top:14px}
+.liveStat{text-align:center}
+.liveStat b{display:block;font:400 22px Marcellus,Georgia,serif;color:var(--gold-hi);font-variant-numeric:tabular-nums}
+.liveStat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 nav.tabs{display:flex;border-bottom:1px solid var(--line)}
 nav.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
   padding:10px;font:600 14px Inter,sans-serif;cursor:pointer}
@@ -122,15 +126,6 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 .lbl{display:block;color:var(--muted);font-size:13px}
 .lbl input{margin-top:4px}
 .hint{text-align:center;color:var(--muted);font-size:12px;margin:6px 0 0}
-.statSummary{text-align:center;padding:18px 0 22px}
-.statSummary .wr{font:400 44px Marcellus,Georgia,serif;color:var(--gold-hi)}
-.statSummary .sub{color:var(--muted);font-size:13px;margin-top:4px}
-.statRow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--deep);
-  margin-bottom:8px;padding:8px 10px}
-.statRow img{width:36px;height:36px;border-radius:50%;flex:none}
-.statRow .name{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.statRow .wr{font-size:13px;color:var(--teal);min-width:4.5ch;text-align:right}
-.statRow .games{color:var(--muted);font-size:12px;min-width:6ch;text-align:right}
 .edActions{display:flex;gap:10px;position:sticky;bottom:-16px;background:var(--abyss);padding:12px 0 16px;margin-top:12px}
 .edActions button{flex:1}
 
@@ -149,7 +144,6 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 <nav class="tabs" id="tabs" hidden>
   <button id="tabChamp" aria-selected="true">Champion</button>
   <button id="tabRunes" aria-selected="false">Runes</button>
-  <button id="tabStats" aria-selected="false">Stats</button>
 </nav>
 
 <section class="center" id="login" hidden>
@@ -161,6 +155,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 <section class="center" id="idle" hidden>
   <p id="idleMsg">Waiting for champ select.</p>
   <p class="clock" id="gameClock" hidden></p>
+  <div class="liveGrid" id="liveGrid" hidden></div>
   <label class="toggle"><input type="checkbox" id="auto"> Auto-accept matches</label>
 </section>
 
@@ -186,12 +181,6 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
   <h2>Your pages</h2>
   <div id="runeList"></div>
   <button class="act" id="newPage" style="width:100%;margin-top:4px">New page</button>
-</section>
-
-<section class="pane" id="stats" hidden>
-  <div id="statsCount"></div>
-  <div id="statsBody"><p class="muted">Loading…</p></div>
-  <button class="act" id="statsRefresh" style="width:100%;margin-top:4px">Refresh</button>
 </section>
 
 <section class="pane" id="editor" hidden>
@@ -223,9 +212,9 @@ if (qsPin) {
 }
 let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
 let autoFilledFor = null; // action id already carried a preview into `chosen` for
-let R = null, ed = null, STATS = null, statsCount = 20;
+let R = null, ed = null;
 
-const VIEWS = ["login","idle","ready","select","runes","stats","editor"];
+const VIEWS = ["login","idle","ready","select","runes","editor"];
 const ROLES = {top:"Top", jungle:"Jungle", middle:"Mid", bottom:"ADC", utility:"Support"};
 const PHASES = {None:"Client open", Lobby:"In lobby", Matchmaking:"Finding match…",
   ReadyCheck:"Match found", ChampSelect:"Champ select", InProgress:"In game",
@@ -270,14 +259,11 @@ function setTab(t){
   tab = t;
   $("tabChamp").setAttribute("aria-selected", t === "champ");
   $("tabRunes").setAttribute("aria-selected", t === "runes");
-  $("tabStats").setAttribute("aria-selected", t === "stats");
   if (t === "runes") openRunes();
-  else if (t === "stats") openStats();
   else { lastKey = teamsKey = ""; renderChamp(); }
 }
 $("tabChamp").onclick = () => setTab("champ");
 $("tabRunes").onclick = () => setTab("runes");
-$("tabStats").onclick = () => setTab("stats");
 
 async function tick(){
   if (!pin) { show("login"); return; }
@@ -292,15 +278,24 @@ async function tick(){
   if (st.select) { t.textContent = st.select.timeLeft; t.classList.toggle("low", st.select.timeLeft <= 10); }
   if (st.phase === "InProgress") {
     $("tabs").hidden = true;
-    $("idleMsg").textContent = "Match in progress";
-    $("gameClock").hidden = false; $("gameClock").textContent = formatClock(st.gameTime);
+    const live = st.live;
+    $("idleMsg").textContent = live && live.champion ? `Playing ${live.champion} · Lv ${live.level}` : "Match in progress";
+    $("gameClock").hidden = false; $("gameClock").textContent = formatClock(live ? live.gameTime : 0);
+    const lg = $("liveGrid");
+    if (live && live.champion) {
+      lg.hidden = false;
+      lg.innerHTML = `
+        <div class="liveStat"><b>${live.kills}/${live.deaths}/${live.assists}</b><span>KDA</span></div>
+        <div class="liveStat"><b>${live.cs}</b><span>CS</span></div>
+        <div class="liveStat"><b>${live.csPerMin.toFixed(1)}</b><span>CS/min</span></div>
+      `;
+    } else lg.hidden = true;
     show("idle"); return;
   }
-  $("gameClock").hidden = true;
+  $("gameClock").hidden = true; $("liveGrid").hidden = true;
   $("tabs").hidden = false;
   if (st.phase === "ReadyCheck" && !st.autoAccept) { show("ready"); return; }
   if (tab === "champ") renderChamp();
-  else if (tab === "stats") { if (["ready","idle"].includes(currentView())) openStats(); }
   else if (["ready","idle"].includes(currentView())) ed ? show("editor") : openRunes();
 }
 
@@ -453,56 +448,6 @@ $("search").oninput = renderGrid;
 
 const styleById = id => R?.styles.find(s => s.id === id);
 const perk = id => R?.perks[id];
-
-const STATS_COUNTS = [20, 50, 100];
-
-function renderStatsCount(){
-  $("statsCount").innerHTML = STATS_COUNTS.map(n =>
-    `<button class="mini${n === statsCount ? " sel" : ""}" data-n="${n}">Last ${n}</button>`
-  ).join("");
-}
-$("statsCount").onclick = e => {
-  const b = e.target.closest("button[data-n]"); if (!b) return;
-  statsCount = +b.dataset.n;
-  openStats(true);
-};
-
-async function openStats(force){
-  show("stats");
-  renderStatsCount();
-  if (STATS && !force) { renderStats(); return; }
-  $("statsBody").innerHTML = `<p class="muted">Loading…</p>`;
-  try { STATS = await api("/api/stats?count=" + statsCount); } catch(e) {
-    if (e.message !== "pin") $("statsBody").innerHTML = `<p class="muted">${esc(e.message)}</p>`;
-    return;
-  }
-  renderStats();
-}
-$("statsRefresh").onclick = () => openStats(true);
-
-function renderStats(){
-  if (!STATS || !STATS.games) {
-    $("statsBody").innerHTML = `<p class="muted">No recent games found.</p>`;
-    return;
-  }
-  const wr = STATS.winRate.toFixed(0);
-  const losses = STATS.games - STATS.wins;
-  const champRows = (STATS.perChampion || []).map(c => `
-    <div class="statRow">
-      <img src="/icon/${c.championId}" alt="">
-      <span class="name">${esc(c.championName || "Unknown")}</span>
-      <span class="wr">${c.winRate.toFixed(0)}% WR</span>
-      <span class="games">${c.wins}W ${c.games - c.wins}L</span>
-    </div>`).join("");
-  $("statsBody").innerHTML = `
-    <div class="statSummary">
-      <div class="wr">${wr}% winrate</div>
-      <div class="sub">${STATS.wins}W ${losses}L over last ${STATS.games} games &middot; ${(STATS.kills / STATS.games).toFixed(1)} / ${(STATS.deaths / STATS.games).toFixed(1)} / ${(STATS.assists / STATS.games).toFixed(1)} KDA</div>
-    </div>
-    <h2>By champion</h2>
-    ${champRows || '<p class="muted">No games found.</p>'}
-  `;
-}
 
 async function openRunes(){
   ed = null; show("runes");

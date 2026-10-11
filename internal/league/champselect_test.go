@@ -3,8 +3,8 @@ package league
 import "testing"
 
 type fakeClient struct {
-	responses map[string]interface{}
-	gameTime  float64
+	responses    map[string]interface{}
+	liveGameData interface{}
 }
 
 func (f *fakeClient) Get(path string) (interface{}, error)           { return f.responses[path], nil }
@@ -13,16 +13,35 @@ func (f *fakeClient) Put(string, interface{}) (interface{}, error)   { return ni
 func (f *fakeClient) Patch(string, interface{}) (interface{}, error) { return nil, nil }
 func (f *fakeClient) Delete(string) (interface{}, error)             { return nil, nil }
 func (f *fakeClient) Raw(string) ([]byte, error)                     { return nil, nil }
-func (f *fakeClient) GameTime() (float64, error)                     { return f.gameTime, nil }
+func (f *fakeClient) LiveGameData() (interface{}, error)             { return f.liveGameData, nil }
 
-// TestStateInProgressReportsGameTime checks that once the game itself is
-// running, State() reports the elapsed match time from the Live Client Data
-// API instead of trying to parse a champ-select session that no longer
-// exists.
-func TestStateInProgressReportsGameTime(t *testing.T) {
+// TestStateInProgressReportsLiveStats checks that once the game itself is
+// running, State() reports the local player's live line from the Live
+// Client Data API instead of trying to parse a champ-select session that no
+// longer exists.
+func TestStateInProgressReportsLiveStats(t *testing.T) {
 	client := &fakeClient{
 		responses: map[string]interface{}{"/lol-gameflow/v1/gameflow-phase": "InProgress"},
-		gameTime:  754.2,
+		liveGameData: map[string]interface{}{
+			"gameData": map[string]interface{}{"gameTime": float64(600)},
+			"activePlayer": map[string]interface{}{
+				"riotIdGameName": "Me", "riotIdTagLine": "EUW",
+			},
+			"allPlayers": []interface{}{
+				map[string]interface{}{
+					"riotIdGameName": "Me", "riotIdTagLine": "EUW",
+					"championName": "Ahri", "level": float64(11),
+					"scores": map[string]interface{}{
+						"kills": float64(4), "deaths": float64(1), "assists": float64(6), "creepScore": float64(150),
+					},
+				},
+				map[string]interface{}{
+					"riotIdGameName": "Someone", "riotIdTagLine": "EUW",
+					"championName": "Zed", "level": float64(10),
+					"scores": map[string]interface{}{"kills": float64(2), "deaths": float64(3), "assists": float64(1), "creepScore": float64(90)},
+				},
+			},
+		},
 	}
 	svc := NewService(client)
 	result := svc.State()
@@ -30,11 +49,15 @@ func TestStateInProgressReportsGameTime(t *testing.T) {
 	if result.Phase != "InProgress" {
 		t.Errorf("Phase = %q, want InProgress", result.Phase)
 	}
-	if result.GameTime != 754.2 {
-		t.Errorf("GameTime = %v, want 754.2", result.GameTime)
-	}
 	if result.Select != nil {
 		t.Error("Select should be nil while in game")
+	}
+	if result.Live == nil {
+		t.Fatal("Live is nil, want the local player's live stats")
+	}
+	want := LiveStats{GameTime: 600, Champion: "Ahri", Level: 11, Kills: 4, Deaths: 1, Assists: 6, CS: 150, CSPerMin: 15}
+	if *result.Live != want {
+		t.Errorf("Live = %+v, want %+v", *result.Live, want)
 	}
 }
 

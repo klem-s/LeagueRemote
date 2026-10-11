@@ -9,22 +9,17 @@ type Champion struct {
 	Name string `json:"name"`
 }
 
-type ChampionStats struct {
-	ChampionID   int     `json:"championId"`
-	ChampionName string  `json:"championName"`
-	Games        int     `json:"games"`
-	Wins         int     `json:"wins"`
-	WinRate      float64 `json:"winRate"`
-}
-
-type StatsResult struct {
-	Games       int             `json:"games"`
-	Wins        int             `json:"wins"`
-	WinRate     float64         `json:"winRate"`
-	Kills       int             `json:"kills"`
-	Deaths      int             `json:"deaths"`
-	Assists     int             `json:"assists"`
-	PerChampion []ChampionStats `json:"perChampion"`
+// LiveStats is the local player's live in-game line, read from the Live
+// Client Data API while Phase == "InProgress".
+type LiveStats struct {
+	GameTime float64 `json:"gameTime"`
+	Champion string  `json:"champion"`
+	Level    int     `json:"level"`
+	Kills    int     `json:"kills"`
+	Deaths   int     `json:"deaths"`
+	Assists  int     `json:"assists"`
+	CS       int     `json:"cs"`
+	CSPerMin float64 `json:"csPerMin"`
 }
 
 type TeamSlot struct {
@@ -82,7 +77,7 @@ type StateResult struct {
 	Phase      string       `json:"phase,omitempty"`
 	AutoAccept bool         `json:"autoAccept"`
 	Select     *SelectState `json:"select"`
-	GameTime   float64      `json:"gameTime,omitempty"` // elapsed match seconds, only set while Phase == "InProgress"
+	Live       *LiveStats   `json:"live,omitempty"` // only set while Phase == "InProgress"
 	Error      string       `json:"error,omitempty"`
 }
 
