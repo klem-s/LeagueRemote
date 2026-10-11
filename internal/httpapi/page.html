@@ -109,6 +109,7 @@ img.ks{width:40px;height:40px;flex:none}
 img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 .mini{background:none;border:1px solid var(--line);color:var(--gold);padding:8px 10px;font:600 13px Inter,sans-serif;
   margin-right:8px;cursor:pointer}
+.mini.sel{background:var(--gold);color:var(--abyss)}
 .rec em{margin-left:auto;font-style:normal;color:var(--teal);font-weight:600;padding-left:8px}
 .prow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0 2px}
 .prow button{background:none;border:0;padding:0;cursor:pointer;border-radius:50%}
@@ -188,6 +189,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 </section>
 
 <section class="pane" id="stats" hidden>
+  <div id="statsCount"></div>
   <div id="statsBody"><p class="muted">Loading…</p></div>
   <button class="act" id="statsRefresh" style="width:100%;margin-top:4px">Refresh</button>
 </section>
@@ -221,7 +223,7 @@ if (qsPin) {
 }
 let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
 let autoFilledFor = null; // action id already carried a preview into `chosen` for
-let R = null, ed = null, STATS = null;
+let R = null, ed = null, STATS = null, statsCount = 20;
 
 const VIEWS = ["login","idle","ready","select","runes","stats","editor"];
 const ROLES = {top:"Top", jungle:"Jungle", middle:"Mid", bottom:"ADC", utility:"Support"};
@@ -452,11 +454,25 @@ $("search").oninput = renderGrid;
 const styleById = id => R?.styles.find(s => s.id === id);
 const perk = id => R?.perks[id];
 
+const STATS_COUNTS = [20, 50, 100];
+
+function renderStatsCount(){
+  $("statsCount").innerHTML = STATS_COUNTS.map(n =>
+    `<button class="mini${n === statsCount ? " sel" : ""}" data-n="${n}">Last ${n}</button>`
+  ).join("");
+}
+$("statsCount").onclick = e => {
+  const b = e.target.closest("button[data-n]"); if (!b) return;
+  statsCount = +b.dataset.n;
+  openStats(true);
+};
+
 async function openStats(force){
   show("stats");
+  renderStatsCount();
   if (STATS && !force) { renderStats(); return; }
   $("statsBody").innerHTML = `<p class="muted">Loading…</p>`;
-  try { STATS = await api("/api/stats"); } catch(e) {
+  try { STATS = await api("/api/stats?count=" + statsCount); } catch(e) {
     if (e.message !== "pin") $("statsBody").innerHTML = `<p class="muted">${esc(e.message)}</p>`;
     return;
   }

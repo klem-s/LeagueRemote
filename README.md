@@ -53,7 +53,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 - Once the match itself starts, the app shows a live match clock instead of a stale champ-select screen.
 
 **Stats**
-- Overall winrate, W/L and average KDA over your most recent games, plus a per-champion breakdown (games, wins, winrate), computed from match history — there's no pre-aggregated "my stats" endpoint, so this app tallies it itself.
+- Overall winrate, W/L and average KDA over your most recent games (choose 20/50/100), plus a per-champion breakdown (games, wins, winrate), computed from match history — there's no pre-aggregated "my stats" endpoint, so this app tallies it itself.
 
 **Runes**
 - Page list, one-tap activation, delete editable pages.
@@ -132,7 +132,7 @@ git push origin v1.0.0
 
 - The LCU isn't an official API: endpoints can change after a patch.
 - The in-game clock uses a *different* local server than the LCU: the Live Client Data API at `127.0.0.1:2999` (unauthenticated, only reachable while a match is actually running), not `127.0.0.1:<lcu-port>`. Unlike the rest of this app, that endpoint shape is officially documented by Riot, so it's high-confidence.
-- Stats default to your last 20 games (`/api/stats?count=N` to change it) via `/lol-match-history/v1/products/lol/current-summoner/matches` — long-standing and widely relied on by other community tools, same confidence level as the lobby/champ-select endpoints. "Me" within each match is matched by `puuid` (falling back to the legacy `accountId`) against `participantIdentities`, same approach LoL Remote already uses elsewhere for Riot ID resolution.
+- Stats fetch 20/50/100 games (picked in the UI; `/api/stats?count=N` server-side, capped at 200) via `/lol-match-history/v1/products/lol/current-summoner/matches` — long-standing and widely relied on by other community tools, same confidence level as the lobby/champ-select endpoints. Fetched a known-safe 20 at a time rather than one big range, since nothing confirms the LCU handles an arbitrarily large single request well. "Me" within each match is matched by `puuid` (falling back to the legacy `accountId`) against `participantIdentities`, same approach LoL Remote already uses elsewhere for Riot ID resolution.
 - `champion-summary.json` contains special-mode variants sharing a name with a different ID; the smallest ID per name is kept.
 - During a ban, the allowed-champion list is computed server-side (everything except already-banned or locked-in champions), since `bannable-champion-ids` isn't reliable.
 - On some client versions, editing a page (`PUT`) fails: the page is then deleted and recreated.

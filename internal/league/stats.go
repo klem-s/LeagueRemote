@@ -13,11 +13,18 @@ import (
 // (participants + participantIdentities, matching MatchDto) is the one
 // every such tool relies on.
 
-const defaultStatsCount = 20
+const (
+	defaultStatsCount = 20
+	maxStatsCount     = 200 // sane upper bound regardless of what the caller asks for
+	statsPageSize     = 20  // fetched one known-safe page at a time rather than one big range
+)
 
 func (s *Service) Stats(count int) (StatsResult, error) {
 	if count <= 0 {
 		count = defaultStatsCount
+	}
+	if count > maxStatsCount {
+		count = maxStatsCount
 	}
 
 	meRaw, err := s.client.Get("/lol-summoner/v1/current-summoner")
@@ -28,12 +35,10 @@ func (s *Service) Stats(count int) (StatsResult, error) {
 	myPUUID := asString(me["puuid"])
 	myAccountID := asInt(me["accountId"])
 
-	historyRaw, err := s.client.Get(fmt.Sprintf(
-		"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=%d", count-1))
+	games, err := s.fetchRecentGames(count)
 	if err != nil {
 		return StatsResult{}, err
 	}
-	games := asList(asMap(asMap(historyRaw)["games"])["games"])
 
 	champs, _ := s.Champions()
 	nameByID := make(map[int]string, len(champs))
@@ -88,6 +93,35 @@ func (s *Service) Stats(count int) (StatsResult, error) {
 	})
 
 	return result, nil
+}
+
+// fetchRecentGames pages through match history in fixed-size, known-safe
+// chunks rather than one big begIndex/endIndex range (no confirmation the
+// LCU handles an arbitrarily large single range well), stopping once count
+// games have been collected or a short page signals there's no more
+// history.
+func (s *Service) fetchRecentGames(count int) ([]interface{}, error) {
+	var games []interface{}
+	for begIndex := 0; len(games) < count; begIndex += statsPageSize {
+		endIndex := begIndex + statsPageSize - 1
+		raw, err := s.client.Get(fmt.Sprintf(
+			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=%d&endIndex=%d", begIndex, endIndex))
+		if err != nil {
+			if begIndex == 0 {
+				return nil, err
+			}
+			break // later pages failing after we already have some games isn't fatal
+		}
+		page := asList(asMap(asMap(raw)["games"])["games"])
+		games = append(games, page...)
+		if len(page) < statsPageSize {
+			break // short page: reached the end of available history
+		}
+	}
+	if len(games) > count {
+		games = games[:count]
+	}
+	return games, nil
 }
 
 // findParticipantID maps "me" to a participantId for this specific game: by

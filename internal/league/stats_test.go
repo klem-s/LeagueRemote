@@ -34,7 +34,7 @@ func TestStatsAggregatesAcrossGames(t *testing.T) {
 			"/lol-summoner/v1/current-summoner": map[string]interface{}{
 				"puuid": "my-puuid", "accountId": float64(111),
 			},
-			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=2": map[string]interface{}{
+			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=19": map[string]interface{}{
 				"games": map[string]interface{}{
 					"games": []interface{}{
 						matchFixture(1, 103, true, "my-puuid"),  // Ahri, win
@@ -88,7 +88,7 @@ func TestStatsSkipsGamesWhereLocalPlayerIsntFound(t *testing.T) {
 	client := &fakeClient{
 		responses: map[string]interface{}{
 			"/lol-summoner/v1/current-summoner": map[string]interface{}{"puuid": "my-puuid"},
-			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=0": map[string]interface{}{
+			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=19": map[string]interface{}{
 				"games": map[string]interface{}{
 					"games": []interface{}{
 						matchFixture(1, 103, true, "not-me"),
@@ -105,5 +105,60 @@ func TestStatsSkipsGamesWhereLocalPlayerIsntFound(t *testing.T) {
 	}
 	if result.Games != 0 {
 		t.Errorf("Games = %d, want 0 (local player not found in fixture)", result.Games)
+	}
+}
+
+func placeholderGames(n int) []interface{} {
+	out := make([]interface{}, n)
+	for i := range out {
+		out[i] = map[string]interface{}{"gameId": float64(i)}
+	}
+	return out
+}
+
+// TestFetchRecentGamesPaginates checks that more than one page's worth of
+// games are fetched across multiple requests (statsPageSize at a time),
+// stopping once `count` is reached.
+func TestFetchRecentGamesPaginates(t *testing.T) {
+	client := &fakeClient{
+		responses: map[string]interface{}{
+			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=19": map[string]interface{}{
+				"games": map[string]interface{}{"games": placeholderGames(20)},
+			},
+			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=20&endIndex=39": map[string]interface{}{
+				"games": map[string]interface{}{"games": placeholderGames(20)},
+			},
+		},
+	}
+	svc := NewService(client)
+
+	games, err := svc.fetchRecentGames(25)
+	if err != nil {
+		t.Fatalf("fetchRecentGames error: %v", err)
+	}
+	if len(games) != 25 {
+		t.Fatalf("got %d games, want 25 (two pages, trimmed to count)", len(games))
+	}
+}
+
+// TestFetchRecentGamesStopsOnShortPage checks that a page shorter than
+// statsPageSize is treated as the end of available history, rather than
+// looping forever or erroring when fewer games exist than requested.
+func TestFetchRecentGamesStopsOnShortPage(t *testing.T) {
+	client := &fakeClient{
+		responses: map[string]interface{}{
+			"/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=19": map[string]interface{}{
+				"games": map[string]interface{}{"games": placeholderGames(7)},
+			},
+		},
+	}
+	svc := NewService(client)
+
+	games, err := svc.fetchRecentGames(50)
+	if err != nil {
+		t.Fatalf("fetchRecentGames error: %v", err)
+	}
+	if len(games) != 7 {
+		t.Fatalf("got %d games, want 7 (short page = end of history)", len(games))
 	}
 }
