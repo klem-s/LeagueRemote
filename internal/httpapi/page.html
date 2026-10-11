@@ -180,6 +180,14 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 <script>
 const $ = id => document.getElementById(id);
 let pin = ""; try { pin = localStorage.getItem("pin") || ""; } catch(e) {}
+// Scanning the QR code opens ?pin=XXXX so the PIN doesn't have to be typed.
+// Adopt it, persist it, then scrub it from the address bar/history.
+const qsPin = new URLSearchParams(location.search).get("pin");
+if (qsPin) {
+  pin = qsPin;
+  try { localStorage.setItem("pin", pin); } catch(e) {}
+  history.replaceState(null, "", location.pathname);
+}
 let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
 let R = null, ed = null;
 

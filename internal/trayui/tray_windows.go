@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -118,8 +119,10 @@ func showPopup(pin, url string, update Update) {
 }
 
 func renderPopup(pin, url string, update Update) string {
+	// The QR encodes the PIN too (?pin=...), so scanning it logs straight
+	// in instead of making the player type the PIN by hand.
 	qrB64 := ""
-	if png, err := qrcode.Encode(url, qrcode.Medium, 220); err == nil {
+	if png, err := qrcode.Encode(url+"?pin="+neturl.QueryEscape(pin), qrcode.Medium, 220); err == nil {
 		qrB64 = base64.StdEncoding.EncodeToString(png)
 	}
 	updateBlock := ""

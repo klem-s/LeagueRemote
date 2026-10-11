@@ -31,7 +31,7 @@ Le client League expose une API REST non officielle, la **LCU API**, qui n'écou
 lol-remote.exe
 ```
 
-Une fenêtre affiche l'adresse, le code PIN et un code QR au démarrage ; l'icône dans la zone de notification permet de la rouvrir à tout moment, ou de quitter.
+Une fenêtre affiche l'adresse, le code PIN et un code QR au démarrage ; scanner le QR ouvre l'app et connecte directement, sans ressaisir le PIN. L'icône dans la zone de notification permet de rouvrir cette fenêtre à tout moment, ou de quitter.
 
 Le PIN est aléatoire à chaque lancement, sauf si la variable d'environnement `LOL_REMOTE_PIN` est définie. Le port par défaut est `53217` ; s'il est déjà pris, un port libre est choisi automatiquement.
 
