@@ -203,6 +203,7 @@ if (qsPin) {
   history.replaceState(null, "", location.pathname);
 }
 let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
+let autoFilledFor = null; // action id already carried a preview into `chosen` for
 let R = null, ed = null;
 
 const VIEWS = ["login","idle","ready","select","runes","editor"];
@@ -269,10 +270,20 @@ async function tick(){
 async function renderChamp(){
   if (!st || st.phase !== "ChampSelect" || !st.select) {
     $("idleMsg").textContent = "Waiting for champ select.";
-    chosen = 0; show("idle"); return;
+    chosen = 0; autoFilledFor = null; show("idle"); return;
   }
   try { await loadChamps(); } catch(e) { return; }
   if (tab !== "champ") return;
+  const a = st.select.action;
+  // Once the player's actual pick turn goes active, carry over whatever
+  // championId is already on that action — i.e. what "Preview as my pick"
+  // set earlier — into the local selection, so it shows up chosen and
+  // ready to lock in without having to tap it again. Only does this once
+  // per action id, so it doesn't stomp on a manual re-pick afterward.
+  if (a && a.type === "pick" && a.inProgress && a.championId && autoFilledFor !== a.id) {
+    chosen = a.championId;
+    autoFilledFor = a.id;
+  }
   if (!st.select.action && st.select.lockedChampion) $("phase").textContent = "Champion locked in";
   show("select"); renderTeams(); renderGrid(); renderBar();
 }
