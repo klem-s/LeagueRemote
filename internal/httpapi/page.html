@@ -159,7 +159,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 
 <main class="pane" id="select" hidden>
   <div class="teams" id="teams"></div>
-  <label class="toggle" id="previewToggleWrap" hidden><input type="checkbox" id="previewPick" checked> Taps preview my pick instead of banning</label>
+  <label class="toggle" id="previewToggleWrap" hidden><input type="checkbox" id="previewPick"> Taps preview my pick instead of banning</label>
   <input type="search" id="search" placeholder="Search for a champion" autocomplete="off">
   <div class="grid" id="grid"></div>
 </main>
@@ -390,8 +390,12 @@ function renderBar(){
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
   // Only ambiguous (and only worth asking about) while actively banning
-  // with a separate pick still pending to preview.
-  $("previewToggleWrap").hidden = !(isBan && a?.inProgress && st?.select?.upcomingPick);
+  // with a separate pick still pending to preview. Auto-uncheck right as
+  // it appears, so taps default to targeting the ban — the user can still
+  // check it to switch to previewing the pick instead.
+  const shouldShowToggle = isBan && a?.inProgress && st?.select?.upcomingPick;
+  if (shouldShowToggle && $("previewToggleWrap").hidden) $("previewPick").checked = false;
+  $("previewToggleWrap").hidden = !shouldShowToggle;
 }
 
 async function send(lock, action){
