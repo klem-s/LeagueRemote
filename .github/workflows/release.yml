@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -20,15 +20,24 @@ jobs:
 
       - name: Build Windows binary
         run: |
-          GOOS=windows GOARCH=amd64 go build \
-            -ldflags="-s -w -H=windowsgui -X main.version=${{ github.ref_name }}" \
-            -o lol-remote.exe .
+          go build -ldflags="-s -w -H=windowsgui -X main.version=${{ github.ref_name }}" -o lol-remote.exe .
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" installer\lol-remote.iss
 
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: pwsh
         run: |
-          gh release delete "${{ github.ref_name }}" --yes || true
-          gh release create "${{ github.ref_name }}" lol-remote.exe \
-            --title "${{ github.ref_name }}" \
+          gh release delete "${{ github.ref_name }}" --yes
+          $global:LASTEXITCODE = 0 # fine if there was no existing release to delete
+          gh release create "${{ github.ref_name }}" lol-remote.exe installer\LoLRemote-Setup.exe `
+            --title "${{ github.ref_name }}" `
             --generate-notes

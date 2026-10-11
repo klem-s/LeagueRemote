@@ -6,7 +6,11 @@ Go rewrite of the original Python script (see "History" below): a single Windows
 
 ## Installation
 
-Download `lol-remote.exe` from the [Releases](../../releases) page and run it (double-click). No console opens: a tray icon appears, along with a window showing the address and PIN to enter on your phone.
+Download `LoLRemote-Setup.exe` from the [Releases](../../releases) page and run it — installs per-user under `%LOCALAPPDATA%` (no admin rights / UAC prompt), adds a Start Menu entry and uninstaller, and launches the app when done. Re-running the installer for a newer version just updates the existing install in place, so this is also how you update — no more manually pulling a new exe each time.
+
+Prefer a portable, no-install option? `lol-remote.exe` is still published alongside the installer on every release — download and run it directly, same as before.
+
+Either way: no console opens, a tray icon appears, along with a window showing the address and PIN to enter on your phone.
 
 Allow the executable through the Windows firewall (private networks) on first launch.
 
@@ -117,9 +121,14 @@ GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui -X main.version
 - [`jchv/go-webview2`](https://github.com/jchv/go-webview2) for the window (pure-Go binding to Windows' WebView2 control).
 - [`skip2/go-qrcode`](https://github.com/skip2/go-qrcode) to generate the QR code embedded in that window.
 
+Building the installer additionally needs [Inno Setup](https://jrsoftware.org/isinfo.php) (Windows only) and, with `lol-remote.exe` already built as above:
+```
+iscc /DAppVersion=0.0.0-dev installer\lol-remote.iss
+```
+
 ## Publishing a release
 
-Every `vX.Y.Z` tag pushed to GitHub triggers CI (`.github/workflows/release.yml`), which builds `lol-remote.exe` for Windows and publishes a Release with the binary attached.
+Every `vX.Y.Z` tag pushed to GitHub triggers CI (`.github/workflows/release.yml`), which builds `lol-remote.exe`, packages it into `LoLRemote-Setup.exe` via Inno Setup (`installer/lol-remote.iss`), and publishes a Release with both attached. Runs on `windows-latest` (not Ubuntu) specifically so Inno Setup's compiler (`ISCC.exe`) is available.
 
 ```
 git tag v1.0.0
