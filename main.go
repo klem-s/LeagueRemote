@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		listener, err = net.Listen("tcp", "0.0.0.0:0")
 		if err != nil {
-			trayui.ReportFatal(fmt.Sprintf("Impossible d'ouvrir un port : %v", err))
+			trayui.ReportFatal(fmt.Sprintf("Could not open a port: %v", err))
 			os.Exit(1)
 		}
 	}
@@ -62,7 +62,7 @@ func main() {
 	server := httpapi.NewServer(svc, pin)
 	go func() {
 		if err := http.Serve(listener, server.Handler()); err != nil {
-			trayui.ReportFatal(fmt.Sprintf("Erreur serveur : %v", err))
+			trayui.ReportFatal(fmt.Sprintf("Server error: %v", err))
 			os.Exit(1)
 		}
 	}()

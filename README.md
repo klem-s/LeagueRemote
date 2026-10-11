@@ -57,7 +57,7 @@ Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 53217` rend l'
 - Manifest et icône générés en PNG au démarrage : l'app s'ajoute à l'écran d'accueil et s'ouvre en plein écran.
 
 **Sur le PC**
-- Pas de console : une icône dans la zone de notification, menu « Afficher » (adresse, PIN et QR dans une fenêtre reprenant le thème hextech de l'app mobile) et « Quitter ».
+- Pas de console : une icône dans la zone de notification, menu « Show » (adresse, PIN et QR dans une fenêtre reprenant le thème hextech de l'app mobile, en anglais) et « Quit ».
 - Si le runtime WebView2 n'est pas installé (rare — présent par défaut sur Windows 11 et déployé par Windows Update sur la plupart des Windows 10), repli automatique sur une boîte de dialogue système.
 
 ## Structure du projet

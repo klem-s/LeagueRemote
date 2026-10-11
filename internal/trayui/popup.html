@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -10,7 +10,7 @@
   --teal:#0ac8b9; --muted:#7b8a99;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
+html,body{margin:0; width:100%; height:100%; overflow:hidden}
 body{
   background:var(--abyss); color:var(--gold-hi);
   font:15px/1.4 Inter,system-ui,sans-serif;
@@ -18,51 +18,51 @@ body{
   -webkit-user-select:text;
 }
 .card{
-  width:100%; max-width:320px; padding:28px 26px; text-align:center;
+  width:100%; max-width:320px; padding:22px 26px; text-align:center;
 }
 h1{
   font:400 22px Marcellus,Georgia,serif; color:var(--gold); margin:0 0 4px;
   letter-spacing:.02em;
 }
-.sub{color:var(--muted); font-size:13px; margin:0 0 24px}
-.field{margin-bottom:18px}
+.sub{color:var(--muted); font-size:13px; margin:0 0 20px}
+.field{margin-bottom:14px}
 .label{
   font-size:11px; text-transform:uppercase; letter-spacing:.08em;
-  color:var(--muted); margin:0 0 6px;
+  color:var(--muted); margin:0 0 5px;
 }
 .value{
-  font:600 15px/1.4 Inter,sans-serif; color:var(--gold-hi); word-break:break-all;
+  font:600 15px/1.3 Inter,sans-serif; color:var(--gold-hi); word-break:break-all;
   background:var(--deep); border:1px solid var(--line); border-radius:3px;
-  padding:9px 12px;
+  padding:8px 12px;
 }
 .value.pin{
-  font:600 30px Marcellus,Georgia,serif; letter-spacing:.08em; color:var(--teal);
-  padding:10px 12px;
+  font:600 28px Marcellus,Georgia,serif; letter-spacing:.08em; color:var(--teal);
+  padding:7px 12px;
 }
 .qr{
-  margin-top:20px; display:inline-block; padding:10px; background:#fff;
+  margin-top:16px; display:inline-block; padding:8px; background:#fff;
   border-radius:4px; line-height:0;
 }
-.qr img{display:block; width:168px; height:168px}
-.hint{color:var(--muted); font-size:12px; margin:14px 0 0}
+.qr img{display:block; width:150px; height:150px}
+.hint{color:var(--muted); font-size:12px; margin:12px 0 0}
 </style>
 </head>
 <body>
 <div class="card">
   <h1>LoL Remote</h1>
-  <p class="sub">Scanne le code ou saisis l'adresse sur ton téléphone</p>
+  <p class="sub">Scan the code or type the address on your phone</p>
 
   <div class="field">
-    <p class="label">Adresse</p>
+    <p class="label">Address</p>
     <p class="value">__URL__</p>
   </div>
   <div class="field">
-    <p class="label">Code PIN</p>
+    <p class="label">PIN code</p>
     <p class="value pin">__PIN__</p>
   </div>
 
-  <div class="qr"><img src="data:image/png;base64,__QR__" alt="Code QR"></div>
-  <p class="hint">Même réseau Wi-Fi que ce PC</p>
+  <div class="qr"><img src="data:image/png;base64,__QR__" alt="QR code"></div>
+  <p class="hint">Same Wi-Fi network as this PC</p>
 </div>
 </body>
 </html>

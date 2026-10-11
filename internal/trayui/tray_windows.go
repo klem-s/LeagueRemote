@@ -38,12 +38,12 @@ func onReady(pin, url string) {
 	systray.SetTitle("LoL Remote")
 	systray.SetTooltip("LoL Remote — PIN " + pin)
 
-	show := systray.AddMenuItem("Afficher", "Affiche l'adresse et le PIN")
+	show := systray.AddMenuItem("Show", "Show the address and PIN")
 	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quitter", "Arrête LoL Remote")
+	quit := systray.AddMenuItem("Quit", "Stop LoL Remote")
 
-	// Affichée immédiatement au lancement : on ne veut pas que l'utilisateur
-	// ait à deviner qu'il faut ouvrir le menu de l'icône pour voir le PIN.
+	// Shown immediately at launch: the user shouldn't have to guess that
+	// the tray menu is where the PIN lives.
 	showPopup(pin, url)
 
 	for {
@@ -79,16 +79,25 @@ func showPopup(pin, url string) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
+		const popupWidth, popupHeight = 360, 560
+
 		w := webview.NewWithOptions(webview.WebViewOptions{
 			WindowOptions: webview.WindowOptions{
-				Title: "LoL Remote", Width: 360, Height: 560, Center: true,
+				Title: "LoL Remote", Width: popupWidth, Height: popupHeight, Center: true,
 			},
 		})
 		if w == nil {
-			messageBox("LoL Remote", fmt.Sprintf("Adresse : %s\nCode PIN : %s", url, pin))
+			messageBox("LoL Remote", fmt.Sprintf("Address: %s\nPIN code: %s", url, pin))
 			return
 		}
 		defer w.Destroy()
+
+		// HintFixed also re-measures the window so popupWidth/popupHeight
+		// become the exact *client* area (the initial size above is the
+		// outer window, shrunk by the title bar) — without this the content
+		// was a few pixels taller than the viewport and triggered a
+		// scrollbar. It also drops the resize/maximize affordances.
+		w.SetSize(popupWidth, popupHeight, webview.HintFixed)
 
 		w.SetHtml(renderPopup(pin, url))
 		w.Run()
@@ -109,7 +118,7 @@ func renderPopup(pin, url string) string {
 
 // ReportFatal shows an error dialog — there is no console to print to.
 func ReportFatal(msg string) {
-	messageBox("LoL Remote — Erreur", msg)
+	messageBox("LoL Remote — Error", msg)
 }
 
 func messageBox(title, text string) {
