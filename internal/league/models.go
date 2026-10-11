@@ -9,6 +9,11 @@ type Champion struct {
 	Name string `json:"name"`
 }
 
+type SummonerSpell struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 // LiveStats is the local player's live in-game line, read from the Live
 // Client Data API while Phase == "InProgress".
 type LiveStats struct {
@@ -62,6 +67,8 @@ type Action struct {
 type SelectState struct {
 	TimeLeft       int     `json:"timeLeft"`
 	LockedChampion int     `json:"lockedChampion"`
+	Spell1         int     `json:"spell1"`
+	Spell2         int     `json:"spell2"`
 	Action         *Action `json:"action"`
 	// UpcomingPick is the player's own pending pick action specifically,
 	// even while a different action of theirs (e.g. an active ban) is the

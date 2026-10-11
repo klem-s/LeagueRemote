@@ -19,6 +19,9 @@ type Service struct {
 	champsMu    sync.Mutex
 	champsCache []Champion
 
+	spellsMu    sync.Mutex
+	spellsCache []SummonerSpell
+
 	runeMu      sync.Mutex
 	perksCache  map[int]Perk
 	stylesCache []Style
@@ -95,4 +98,11 @@ func (s *Service) Decline() error {
 // remove once that's settled.
 func (s *Service) RawSession() (interface{}, error) {
 	return s.client.Get("/lol-champ-select/v1/session")
+}
+
+// RawLiveGame returns the unparsed /liveclientdata/allgamedata response.
+// Temporary: a CS field assumption (creepScore) is unverified against a
+// real client — see parseLiveStats.
+func (s *Service) RawLiveGame() (interface{}, error) {
+	return s.client.LiveGameData()
 }

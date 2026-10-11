@@ -201,6 +201,8 @@ func (s *Service) State() StateResult {
 	sel := &SelectState{
 		TimeLeft:       asInt(timer["adjustedTimeLeftInPhase"]) / 1000,
 		LockedChampion: asInt(myCell["championId"]),
+		Spell1:         asInt(myCell["spell1Id"]),
+		Spell2:         asInt(myCell["spell2Id"]),
 		Allowed:        []int{},
 		Teams:          buildTeams(sess),
 	}

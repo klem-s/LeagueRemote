@@ -131,6 +131,18 @@ func (s *Server) Handler() http.Handler {
 		writeBytes(w, 200, "application/json", b, false)
 	})
 
+	// Same idea, for the Live Client Data API (in-game stats) instead of
+	// champ-select. See league.Service.RawLiveGame.
+	mux.HandleFunc("/debug/livegame", func(w http.ResponseWriter, r *http.Request) {
+		raw, err := s.svc.RawLiveGame()
+		if err != nil {
+			writeJSON(w, 503, errJSON(err))
+			return
+		}
+		b, _ := json.MarshalIndent(raw, "", "  ")
+		writeBytes(w, 200, "application/json", b, false)
+	})
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		if !s.checkPin(r) {
 			writeJSON(w, 401, map[string]interface{}{"error": "Incorrect PIN"})
