@@ -184,7 +184,6 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 
 <footer id="bar" hidden>
   <div class="pick" id="pickInfo"></div>
-  <button class="act" id="hoverBtn">Hover</button>
   <button class="act primary" id="lockBtn">Lock in</button>
 </footer>
 
@@ -360,7 +359,15 @@ function renderGrid(){
     b.className = "champ" + (c.id === chosen ? " sel" : "");
     b.disabled = allowed.size > 0 && !allowed.has(c.id);
     b.innerHTML = `<img loading="lazy" alt="" src="/icon/${c.id}"><span>${esc(c.name)}</span>`;
-    b.onclick = () => { chosen = c.id; renderGrid(); renderBar(); };
+    b.onclick = () => {
+      chosen = c.id; renderGrid(); renderBar();
+      // Hovering targets the player's own pick action specifically
+      // (upcomingPick), not whatever's currently active (action) — while a
+      // ban is in progress, action IS that ban, and PATCHing the clicked
+      // champion onto it would set the ban target, not a pick preview.
+      // This was the real bug behind "pre-pick doesn't work during bans".
+      send(false, st?.select?.upcomingPick || st?.select?.action);
+    };
     g.appendChild(b);
   }
 }
@@ -374,14 +381,6 @@ function renderBar(){
     : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
-  // Hover/Preview targets the player's own pick action specifically
-  // (upcomingPick), not whatever's currently active (action) — while a
-  // ban is in progress, action IS that ban, and PATCHing a hovered
-  // champion onto it sets the ban target, not a pick preview. This was
-  // the real bug behind "pre-pick doesn't work during bans".
-  const hoverTarget = st?.select?.upcomingPick || a;
-  $("hoverBtn").textContent = (hoverTarget && !hoverTarget.inProgress) ? "Preview" : "Hover";
-  $("hoverBtn").disabled = !hoverTarget || !chosen;
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
 }
 
@@ -389,7 +388,6 @@ async function send(lock, action){
   const target = action || st?.select?.action; if (!target || !chosen) return;
   try { await api("/api/select", {actionId: target.id, championId: chosen, lock}); tick(); } catch(e) { fail(e); }
 }
-$("hoverBtn").onclick = () => send(false, st?.select?.upcomingPick || st?.select?.action);
 $("lockBtn").onclick = () => send(true);
 $("search").oninput = renderGrid;
 
