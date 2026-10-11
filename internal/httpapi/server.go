@@ -118,6 +118,19 @@ func (s *Server) Handler() http.Handler {
 		s.serveAsset(w, p)
 	})
 
+	// Temporary debugging aid, not pin-gated so it's reachable by just
+	// typing the address in any browser: dumps the raw champ-select
+	// session JSON. See league.Service.RawSession.
+	mux.HandleFunc("/debug/session", func(w http.ResponseWriter, r *http.Request) {
+		raw, err := s.svc.RawSession()
+		if err != nil {
+			writeJSON(w, 503, errJSON(err))
+			return
+		}
+		b, _ := json.MarshalIndent(raw, "", "  ")
+		writeBytes(w, 200, "application/json", b, false)
+	})
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		if !s.checkPin(r) {
 			writeJSON(w, 401, map[string]interface{}{"error": "Incorrect PIN"})

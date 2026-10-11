@@ -88,3 +88,11 @@ func (s *Service) Decline() error {
 	_, err := s.client.Post("/lol-matchmaking/v1/ready-check/decline", nil)
 	return err
 }
+
+// RawSession returns the unparsed /lol-champ-select/v1/session response.
+// Temporary: the LCU's trade/swap schema isn't publicly documented, so this
+// is how real field names get confirmed instead of guessed a third time —
+// remove once that's settled.
+func (s *Service) RawSession() (interface{}, error) {
+	return s.client.Get("/lol-champ-select/v1/session")
+}
