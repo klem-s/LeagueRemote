@@ -64,6 +64,7 @@ type StateResult struct {
 	Phase      string       `json:"phase,omitempty"`
 	AutoAccept bool         `json:"autoAccept"`
 	Select     *SelectState `json:"select"`
+	GameTime   float64      `json:"gameTime,omitempty"` // elapsed match seconds, only set while Phase == "InProgress"
 	Error      string       `json:"error,omitempty"`
 }
 

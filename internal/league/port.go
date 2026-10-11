@@ -13,6 +13,12 @@ type Client interface {
 	Patch(path string, body interface{}) (interface{}, error)
 	Delete(path string) (interface{}, error)
 	Raw(path string) ([]byte, error)
+
+	// GameTime returns the elapsed match time in seconds, via the separate,
+	// unauthenticated Live Client Data API the running game process exposes
+	// on 127.0.0.1:2999 — a different local server than the LCU, only up
+	// while a match is actually in progress.
+	GameTime() (float64, error)
 }
 
 // RemoteError is returned by a Client when the League client answered with

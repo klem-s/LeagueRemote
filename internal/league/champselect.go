@@ -171,6 +171,12 @@ func (s *Service) State() StateResult {
 	}
 	phase := asString(phaseRaw)
 	result := StateResult{Connected: true, Phase: phase, AutoAccept: s.AutoAccept()}
+	if phase == "InProgress" {
+		if t, err := s.client.GameTime(); err == nil {
+			result.GameTime = t
+		}
+		return result
+	}
 	if phase != "ChampSelect" {
 		return result
 	}

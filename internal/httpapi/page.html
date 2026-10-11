@@ -30,6 +30,7 @@ header{padding:14px 16px 10px;display:flex;align-items:center;justify-content:sp
 #phase{font-size:13px;color:var(--muted)}
 .timer{font:400 34px Marcellus,Georgia,serif;color:var(--gold-hi);min-width:2ch;text-align:right}
 .timer.low{color:var(--red)}
+.clock{font:400 48px Marcellus,Georgia,serif;color:var(--gold-hi);font-variant-numeric:tabular-nums;margin:0}
 nav.tabs{display:flex;border-bottom:1px solid var(--line)}
 nav.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
   padding:10px;font:600 14px Inter,sans-serif;cursor:pointer}
@@ -148,6 +149,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 
 <section class="center" id="idle" hidden>
   <p id="idleMsg">Waiting for champ select.</p>
+  <p class="clock" id="gameClock" hidden></p>
   <label class="toggle"><input type="checkbox" id="auto"> Auto-accept matches</label>
 </section>
 
@@ -213,6 +215,12 @@ const PHASES = {None:"Client open", Lobby:"In lobby", Matchmaking:"Finding match
   GameStart:"Loading", WaitingForStats:"Post-game", EndOfGame:"Post-game", PreEndOfGame:"Post-game"};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function formatClock(totalSeconds){
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const mm = h ? String(m).padStart(2, "0") : m;
+  return (h ? h + ":" : "") + mm + ":" + String(sec).padStart(2, "0");
+}
 const asset = p => p ? "/asset?p=" + encodeURIComponent(p) : "";
 const img = (p, cls="") => p ? `<img class="${cls}" src="${asset(p)}" alt="">` : "";
 const currentView = () => VIEWS.find(v => !$(v).hidden);
@@ -259,9 +267,16 @@ async function tick(){
     $("phase").textContent = "League client closed"; $("tabs").hidden = true;
     $("idleMsg").textContent = "Start League of Legends on your PC."; show("idle"); return;
   }
-  $("tabs").hidden = false;
   $("phase").textContent = PHASES[st.phase] || st.phase;
   if (st.select) { t.textContent = st.select.timeLeft; t.classList.toggle("low", st.select.timeLeft <= 10); }
+  if (st.phase === "InProgress") {
+    $("tabs").hidden = true;
+    $("idleMsg").textContent = "Match in progress";
+    $("gameClock").hidden = false; $("gameClock").textContent = formatClock(st.gameTime);
+    show("idle"); return;
+  }
+  $("gameClock").hidden = true;
+  $("tabs").hidden = false;
   if (st.phase === "ReadyCheck" && !st.autoAccept) { show("ready"); return; }
   if (tab === "champ") renderChamp();
   else if (["ready","idle"].includes(currentView())) ed ? show("editor") : openRunes();

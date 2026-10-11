@@ -189,4 +189,31 @@ func (c *Client) Raw(path string) ([]byte, error) {
 	return raw, err
 }
 
+// GameTime hits the Live Client Data API (127.0.0.1:2999), a separate local
+// server the game process itself exposes while a match is in progress — no
+// auth token, not the LCU, so it bypasses request()/creds entirely.
+func (c *Client) GameTime() (float64, error) {
+	req, err := http.NewRequest("GET", "https://127.0.0.1:2999/liveclientdata/gamestats", nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, errors.New("game not in progress")
+	}
+	defer resp.Body.Close()
+	content, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return 0, &league.RemoteError{Code: resp.StatusCode, Body: content}
+	}
+	var v struct {
+		GameTime float64 `json:"gameTime"`
+	}
+	if err := json.Unmarshal(content, &v); err != nil {
+		return 0, err
+	}
+	return v.GameTime, nil
+}
+
 var _ league.Client = (*Client)(nil)
