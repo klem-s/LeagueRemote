@@ -45,7 +45,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 - "Match found" screen with Accept/Decline, plus an auto-accept option.
 - Champion grid with search. Unplayable or already-taken champions are greyed out.
 - Hover or lock in a pick. Ban phase handled (Ban button). Preview a pick during the simultaneous "planning" phase at the start of champ select, before your turn is active.
-- Request, receive, accept or decline a swap with a teammate (champion/position trade) — a small icon on their portrait, pulsing when they've sent you a request.
+- Request, receive, accept or decline a swap with a teammate — champion, position (lane/role) or pick order — via a small icon on their portrait, pulsing when they've sent you a request.
 - Phase timer, turns red under 10 seconds.
 - Draft overview: ally picks and hovers (hover shown translucent), enemy picks, both teams' bans, roles, and a highlight on whoever is currently picking. Names only show when the client provides them (Riot hides them in ranked).
 
@@ -93,7 +93,7 @@ All `/api/*` routes require the `X-Pin` header.
 | GET | `/api/runes` | pages, active page, trees and runes |
 | GET | `/api/runes/recommended` | recommended runes for the current champion |
 | POST | `/api/select` | `{actionId, championId, lock}`: hovers, then locks in if `lock`. Also used to pre-pick during the planning phase (see below) — the same endpoint, just allowed earlier |
-| POST | `/api/trades/request`, `/accept`, `/decline`, `/cancel` | `{id}`: drive a swap with a teammate (see below) |
+| POST | `/api/swaps/request`, `/accept`, `/decline`, `/cancel` | `{type, id}`: drive a champion/position/pick-order swap with a teammate (see below) |
 | POST | `/api/accept`, `/api/decline` | ready check |
 | POST | `/api/auto-accept` | `{enabled}` |
 | POST | `/api/runes/activate`, `/api/runes/delete` | `{id}` |
@@ -130,7 +130,7 @@ git push origin v1.0.0
 - On some client versions, editing a page (`PUT`) fails: the page is then deleted and recreated.
 - Over `http` on Wi-Fi, the PIN travels in the clear on the local network. Don't expose the port directly to the Internet.
 - Pre-picking before your turn only works during the session's `timer.phase == "PLANNING"` window (confirmed), and never for bans (no such mechanism exists).
-- Swaps (`internal/league/champselect.go`'s `RequestTrade`/`AcceptTrade`/`DeclineTrade`/`CancelTrade`) are implemented against the most consistently corroborated reverse-engineering of `/lol-champ-select/v1/session/trades`, but the exact schema isn't publicly documented and this hasn't been exercised against a live client — if it misbehaves, the LCU's actual error message (surfaced as a toast) is the best lead for fixing it.
+- Swaps come in three kinds, each a separate array in the session — `trades` (champion), `positionSwaps` (lane/role), `pickOrderSwaps` — all shaped `{id, cellId, state}` with `state` one of `AVAILABLE`/`SENT`/`RECEIVED`/`BUSY`/`INVALID`. This part is confirmed against a real session dump (`internal/league/champselect_test.go`'s `TestBuildTeamsSwapsRealSession`), not guessed. The *action* URLs (`.../trades/{id}/request`, `.../position-swaps/{id}/request`, `.../pick-order-swaps/{id}/request`, each with `/accept`, `/decline`, `/cancel`) follow the LCU's usual kebab-case convention and the `trades` ones are corroborated by several independent sources, but `position-swaps`/`pick-order-swaps` are an educated extrapolation, not yet exercised against a live client — if request/accept/decline/cancel misbehaves for those two, the LCU's actual error message (surfaced as a toast) is the fastest way to fix it.
 
 ## History
 

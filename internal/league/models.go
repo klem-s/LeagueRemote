@@ -17,11 +17,19 @@ type TeamSlot struct {
 	Me       bool   `json:"me"`
 	Locked   bool   `json:"locked"`
 	Picking  bool   `json:"picking"`
-	// Trade state for this ally slot (never set for "me" or enemies).
-	// TradeState is "" when there's nothing to show, otherwise one of
-	// AVAILABLE/SENT/RECEIVED/BUSY/INVALID as reported by the LCU.
-	TradeID    int    `json:"tradeId,omitempty"`
-	TradeState string `json:"tradeState,omitempty"`
+	// Actionable swaps with this ally (never set for "me" or enemies) — the
+	// LCU tracks champion, position and pick-order swaps as three separate
+	// arrays in the session, confirmed against a live client dump. Only
+	// entries in an actionable state (AVAILABLE/SENT/RECEIVED) are included.
+	Swaps []SwapOption `json:"swaps,omitempty"`
+}
+
+// SwapOption is one swap the player could request, is waiting on, or has
+// been offered — Type is "champion", "position" or "pickOrder".
+type SwapOption struct {
+	Type  string `json:"type"`
+	ID    int    `json:"id"`
+	State string `json:"state"`
 }
 
 type Teams struct {

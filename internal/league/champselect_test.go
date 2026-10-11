@@ -107,10 +107,10 @@ func TestStatePlanning(t *testing.T) {
 	}
 }
 
-// TestBuildTeamsTrades checks that a trade entry from the session is
-// attached to the matching ally's cell, and never to "me" or to enemies —
-// trades are only ever offered between allies.
-func TestBuildTeamsTrades(t *testing.T) {
+// TestBuildTeamsSwaps checks that champion/position/pick-order swap entries
+// are attached to the matching ally's cell as Swaps, filtered to only
+// actionable states, and never attached to "me" or to enemies.
+func TestBuildTeamsSwaps(t *testing.T) {
 	session := map[string]interface{}{
 		"localPlayerCellId": float64(1),
 		"myTeam": []interface{}{
@@ -129,17 +129,108 @@ func TestBuildTeamsTrades(t *testing.T) {
 			map[string]interface{}{"id": float64(8), "cellId": float64(1), "state": "AVAILABLE"},
 			map[string]interface{}{"id": float64(9), "cellId": float64(5), "state": "AVAILABLE"},
 		},
+		"positionSwaps": []interface{}{
+			map[string]interface{}{"id": float64(4), "cellId": float64(0), "state": "AVAILABLE"},
+		},
+		"pickOrderSwaps": []interface{}{
+			// INVALID is not actionable — must be filtered out entirely.
+			map[string]interface{}{"id": float64(2), "cellId": float64(0), "state": "INVALID"},
+		},
 	}
 
 	teams := buildTeams(session)
 
-	if teams.Allies[0].TradeID != 7 || teams.Allies[0].TradeState != "RECEIVED" {
-		t.Errorf("Ally0: got TradeID=%d TradeState=%q, want 7/RECEIVED", teams.Allies[0].TradeID, teams.Allies[0].TradeState)
+	want := []SwapOption{
+		{Type: "champion", ID: 7, State: "RECEIVED"},
+		{Type: "position", ID: 4, State: "AVAILABLE"},
 	}
-	if teams.Allies[1].TradeState != "" {
-		t.Errorf("Me: got TradeState=%q, want empty (no self-trade)", teams.Allies[1].TradeState)
+	got := teams.Allies[0].Swaps
+	if len(got) != len(want) {
+		t.Fatalf("Ally0: got %d swaps %+v, want %+v", len(got), got, want)
 	}
-	if teams.Enemies[0].TradeState != "" {
-		t.Errorf("Enemy0: got TradeState=%q, want empty (enemies never trade)", teams.Enemies[0].TradeState)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("Ally0 swap[%d]: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	if len(teams.Allies[1].Swaps) != 0 {
+		t.Errorf("Me: got Swaps=%+v, want none (no self-swap)", teams.Allies[1].Swaps)
+	}
+	if len(teams.Enemies[0].Swaps) != 0 {
+		t.Errorf("Enemy0: got Swaps=%+v, want none (enemies never swap)", teams.Enemies[0].Swaps)
+	}
+}
+
+// TestBuildTeamsSwapsRealSession locks in parsing against an actual LCU
+// session dump (trimmed to the relevant fields), captured live via
+// /debug/session during a real Normal Draft champ select — not a guess.
+func TestBuildTeamsSwapsRealSession(t *testing.T) {
+	session := map[string]interface{}{
+		"localPlayerCellId": float64(9),
+		"myTeam": []interface{}{
+			map[string]interface{}{"cellId": float64(5), "gameName": "", "assignedPosition": "bottom"},
+			map[string]interface{}{"cellId": float64(6), "gameName": "", "assignedPosition": "jungle"},
+			map[string]interface{}{"cellId": float64(7), "gameName": "", "assignedPosition": "utility"},
+			map[string]interface{}{"cellId": float64(8), "gameName": "", "assignedPosition": "top"},
+			map[string]interface{}{"cellId": float64(9), "gameName": "Klem", "assignedPosition": "middle"},
+		},
+		"theirTeam": []interface{}{
+			map[string]interface{}{"cellId": float64(0)}, map[string]interface{}{"cellId": float64(1)},
+			map[string]interface{}{"cellId": float64(2)}, map[string]interface{}{"cellId": float64(3)},
+			map[string]interface{}{"cellId": float64(4)},
+		},
+		"actions": []interface{}{},
+		"bans":    map[string]interface{}{},
+		"trades": []interface{}{
+			map[string]interface{}{"cellId": float64(7), "id": float64(4), "state": "INVALID"},
+			map[string]interface{}{"cellId": float64(8), "id": float64(5), "state": "INVALID"},
+			map[string]interface{}{"cellId": float64(6), "id": float64(6), "state": "INVALID"},
+			map[string]interface{}{"cellId": float64(5), "id": float64(7), "state": "INVALID"},
+		},
+		"positionSwaps": []interface{}{
+			map[string]interface{}{"cellId": float64(7), "id": float64(4), "state": "AVAILABLE"},
+			map[string]interface{}{"cellId": float64(8), "id": float64(5), "state": "AVAILABLE"},
+			map[string]interface{}{"cellId": float64(6), "id": float64(6), "state": "AVAILABLE"},
+			map[string]interface{}{"cellId": float64(5), "id": float64(7), "state": "AVAILABLE"},
+		},
+		"pickOrderSwaps": []interface{}{
+			map[string]interface{}{"cellId": float64(7), "id": float64(4), "state": "AVAILABLE"},
+			map[string]interface{}{"cellId": float64(8), "id": float64(5), "state": "AVAILABLE"},
+			map[string]interface{}{"cellId": float64(6), "id": float64(6), "state": "AVAILABLE"},
+			map[string]interface{}{"cellId": float64(5), "id": float64(7), "state": "AVAILABLE"},
+		},
+	}
+
+	teams := buildTeams(session)
+
+	// Cell 7 (utility ally): champion trade is INVALID (nobody's locked in
+	// yet) so it must be dropped, but position and pick-order swaps are
+	// both AVAILABLE and must both show up.
+	var utility TeamSlot
+	for _, a := range teams.Allies {
+		if a.Position == "utility" {
+			utility = a
+		}
+	}
+	want := []SwapOption{
+		{Type: "position", ID: 4, State: "AVAILABLE"},
+		{Type: "pickOrder", ID: 4, State: "AVAILABLE"},
+	}
+	if len(utility.Swaps) != len(want) {
+		t.Fatalf("utility ally: got %d swaps %+v, want %+v", len(utility.Swaps), utility.Swaps, want)
+	}
+	for i := range want {
+		if utility.Swaps[i] != want[i] {
+			t.Errorf("utility ally swap[%d]: got %+v, want %+v", i, utility.Swaps[i], want[i])
+		}
+	}
+
+	// "Me" (cellId 9, no entries in any of the three arrays at all) must
+	// have no swaps.
+	for _, a := range teams.Allies {
+		if a.Me && len(a.Swaps) != 0 {
+			t.Errorf("me: got Swaps=%+v, want none", a.Swaps)
+		}
 	}
 }

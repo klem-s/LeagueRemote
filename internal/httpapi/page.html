@@ -60,6 +60,13 @@ input:focus{outline:2px solid var(--teal);outline-offset:1px}
 .swapBtn.SENT{opacity:.5}
 .swapBtn.RECEIVED{background:var(--teal);color:var(--abyss);border-color:var(--teal);
   animation:pickPulse 1.1s ease-in-out infinite}
+.swapMenu{position:absolute;z-index:8;width:168px;background:var(--deep);border:1px solid var(--line);
+  border-radius:3px;box-shadow:0 4px 16px rgba(0,0,0,.4);overflow:hidden}
+.swapMenu button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);
+  color:var(--gold-hi);font:13px Inter,sans-serif;padding:9px 12px;cursor:pointer}
+.swapMenu button:last-child{border-bottom:0}
+.swapMenu button:active{background:var(--line)}
+.swapMenu button.decline{color:#ff9b9b}
 .bans{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px;color:var(--muted);min-height:24px}
 .bans img{width:24px;height:24px;filter:grayscale(1);opacity:.75}
 .bans .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
@@ -269,29 +276,33 @@ async function renderChamp(){
   show("select"); renderTeams(); renderGrid(); renderBar();
 }
 
-const SWAPPABLE = new Set(["AVAILABLE", "SENT", "RECEIVED"]);
-let notifiedTrades = new Set();
+const SWAP_LABEL = {champion: "Champion", position: "Position", pickOrder: "Pick order"};
+let notifiedSwaps = new Set();
 
 function slot(c){
   const id = c.champion || c.intent;
   let label = c.me ? "You" : (c.name || ROLES[c.position] || "");
   if (c.picking) label = "Picking…";
   const pic = id ? `<img src="/icon/${id}" alt="" class="${c.locked ? "" : "intent"}">` : `<div class="empty"></div>`;
-  const swap = SWAPPABLE.has(c.tradeState)
-    ? `<button class="swapBtn ${c.tradeState}" data-trade="${c.tradeId}" data-state="${c.tradeState}" aria-label="Swap with ${esc(label)}">⇄</button>`
+  const swaps = c.swaps || [];
+  const received = swaps.some(s => s.state === "RECEIVED");
+  const swapBtn = swaps.length
+    ? `<button class="swapBtn ${received ? "RECEIVED" : swaps[0].state}" data-swaps='${JSON.stringify(swaps)}' aria-label="Swap options with ${esc(label)}">⇄</button>`
     : "";
-  return `<div class="slot${c.me ? " me" : ""}${c.picking ? " picking" : ""}">${pic}${swap}<span>${esc(label)}</span><small>${esc(champById[id]?.name || "")}</small></div>`;
+  return `<div class="slot${c.me ? " me" : ""}${c.picking ? " picking" : ""}">${pic}${swapBtn}<span>${esc(label)}</span><small>${esc(champById[id]?.name || "")}</small></div>`;
 }
 function renderTeams(){
   const T = st.select.teams; if (!T) return;
   const key = JSON.stringify(T); if (key === teamsKey) return; teamsKey = key;
   for (const a of T.allies) {
-    if (a.tradeState === "RECEIVED" && !notifiedTrades.has(a.tradeId)) {
-      notifiedTrades.add(a.tradeId);
-      toast(`${a.name || "A teammate"} wants to swap`, true);
-      if (navigator.vibrate) navigator.vibrate(200);
-    } else if (a.tradeState !== "RECEIVED") {
-      notifiedTrades.delete(a.tradeId);
+    const incoming = (a.swaps || []).filter(s => s.state === "RECEIVED");
+    for (const s of incoming) {
+      const k = s.type + ":" + s.id;
+      if (!notifiedSwaps.has(k)) {
+        notifiedSwaps.add(k);
+        toast(`${a.name || "A teammate"} wants a ${SWAP_LABEL[s.type] || s.type} swap`, true);
+        if (navigator.vibrate) navigator.vibrate(200);
+      }
     }
   }
   const ban = id => `<img src="/icon/${id}" alt="${esc(champById[id]?.name || "")}">`;
@@ -301,19 +312,39 @@ function renderTeams(){
     ((T.allyBans.length || T.enemyBans.length)
       ? `<div class="bans">Bans ${T.allyBans.map(ban).join("")}<span class="sep"></span>${T.enemyBans.map(ban).join("")}</div>` : "");
 }
-$("teams").onclick = async e => {
-  const b = e.target.closest("button[data-trade]"); if (!b) return;
-  const id = +b.dataset.trade, state = b.dataset.state;
-  try {
-    if (state === "AVAILABLE") { await api("/api/trades/request", {id}); toast("Swap request sent", true); }
-    else if (state === "SENT") { if (confirm("Cancel this swap request?")) await api("/api/trades/cancel", {id}); }
-    else if (state === "RECEIVED") {
-      if (confirm("Accept the swap request?")) await api("/api/trades/accept", {id});
-      else await api("/api/trades/decline", {id});
+
+function closeSwapMenu(){ document.querySelectorAll(".swapMenu").forEach(m => m.remove()); }
+function openSwapMenu(btn, swaps){
+  closeSwapMenu();
+  const menu = document.createElement("div");
+  menu.className = "swapMenu";
+  menu.innerHTML = swaps.map(s => {
+    const label = SWAP_LABEL[s.type] || s.type;
+    if (s.state === "RECEIVED") {
+      return `<button data-type="${s.type}" data-id="${s.id}" data-act="accept">${label}: Accept</button>` +
+        `<button data-type="${s.type}" data-id="${s.id}" data-act="decline" class="decline">${label}: Decline</button>`;
     }
-    tick();
-  } catch(e) { fail(e); }
+    const act = s.state === "SENT" ? "cancel" : "request";
+    return `<button data-type="${s.type}" data-id="${s.id}" data-act="${act}">${label}: ${s.state === "SENT" ? "Cancel request" : "Request"}</button>`;
+  }).join("");
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.top = (r.bottom + window.scrollY + 4) + "px";
+  menu.style.left = Math.max(8, Math.min(r.left + window.scrollX, window.innerWidth - 176)) + "px";
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest(".swapMenu, .swapBtn")) closeSwapMenu();
+});
+$("teams").onclick = e => {
+  const b = e.target.closest("button.swapBtn"); if (!b) return;
+  openSwapMenu(b, JSON.parse(b.dataset.swaps));
 };
+document.body.addEventListener("click", async e => {
+  const b = e.target.closest(".swapMenu button"); if (!b) return;
+  const { type, id, act } = b.dataset;
+  try { await api(`/api/swaps/${act}`, {type, id: +id}); tick(); } catch(e) { fail(e); }
+  closeSwapMenu();
+});
 
 function renderGrid(){
   const q = $("search").value.trim().toLowerCase();

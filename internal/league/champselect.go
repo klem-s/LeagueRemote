@@ -53,18 +53,29 @@ func buildTeams(s map[string]interface{}) Teams {
 		}
 	}
 
-	// One entry per potential trade partner, keyed by their cellId: state is
-	// "AVAILABLE" (you can request), "SENT" (you're waiting on them),
-	// "RECEIVED" (they're waiting on you), or "BUSY"/"INVALID" (not
-	// actionable right now).
-	type tradeInfo struct {
+	// The LCU tracks three independent swap kinds as separate arrays in the
+	// session, each shaped the same way — one entry per potential partner,
+	// keyed by their cellId, with a state of AVAILABLE (you can request),
+	// SENT (waiting on them), RECEIVED (they're waiting on you), or
+	// BUSY/INVALID (not actionable right now, e.g. champion swap before
+	// anyone's locked in). Confirmed against a live client dump.
+	type swapEntry struct {
 		id    int
 		state string
 	}
-	tradesByCell := map[int]tradeInfo{}
-	for _, item := range asList(s["trades"]) {
-		t := asMap(item)
-		tradesByCell[asInt(t["cellId"])] = tradeInfo{id: asInt(t["id"]), state: asString(t["state"])}
+	swapsByCellFor := func(key string) map[int]swapEntry {
+		out := map[int]swapEntry{}
+		for _, item := range asList(s[key]) {
+			t := asMap(item)
+			out[asInt(t["cellId"])] = swapEntry{id: asInt(t["id"]), state: asString(t["state"])}
+		}
+		return out
+	}
+	championSwaps := swapsByCellFor("trades")
+	positionSwaps := swapsByCellFor("positionSwaps")
+	pickOrderSwaps := swapsByCellFor("pickOrderSwaps")
+	actionable := func(state string) bool {
+		return state == "AVAILABLE" || state == "SENT" || state == "RECEIVED"
 	}
 
 	slot := func(c map[string]interface{}, ally bool) TeamSlot {
@@ -83,10 +94,17 @@ func buildTeams(s map[string]interface{}) Teams {
 			Picking:  picking[cellID],
 		}
 		if ally && cellID != me {
-			if tr, ok := tradesByCell[cellID]; ok {
-				ts.TradeID = tr.id
-				ts.TradeState = tr.state
+			var swaps []SwapOption
+			if e, ok := championSwaps[cellID]; ok && actionable(e.state) {
+				swaps = append(swaps, SwapOption{Type: "champion", ID: e.id, State: e.state})
 			}
+			if e, ok := positionSwaps[cellID]; ok && actionable(e.state) {
+				swaps = append(swaps, SwapOption{Type: "position", ID: e.id, State: e.state})
+			}
+			if e, ok := pickOrderSwaps[cellID]; ok && actionable(e.state) {
+				swaps = append(swaps, SwapOption{Type: "pickOrder", ID: e.id, State: e.state})
+			}
+			ts.Swaps = swaps
 		}
 		return ts
 	}
@@ -230,32 +248,29 @@ func actionPathFor(id int) string {
 	return "/lol-champ-select/v1/session/actions/" + strconv.Itoa(id)
 }
 
-// RequestTrade, AcceptTrade, DeclineTrade and CancelTrade drive the swap
-// flow for one teammate's trade slot (see buildTeams' tradesByCell).
-//
-// Best-effort: the LCU's trade schema isn't publicly documented (this
-// covers champion swaps; whether the newer in-client "role swap" uses the
-// same mechanism is unconfirmed), so this is implemented against the most
-// consistently corroborated community reverse-engineering rather than
-// verified first-hand — the same caveat this project already carries for
-// the recommended-runes endpoint.
-func (s *Service) RequestTrade(tradeID int) error {
-	_, err := s.client.Post(tradePathFor(tradeID)+"/request", nil)
-	return err
-}
-func (s *Service) AcceptTrade(tradeID int) error {
-	_, err := s.client.Post(tradePathFor(tradeID)+"/accept", nil)
-	return err
-}
-func (s *Service) DeclineTrade(tradeID int) error {
-	_, err := s.client.Post(tradePathFor(tradeID)+"/decline", nil)
-	return err
-}
-func (s *Service) CancelTrade(tradeID int) error {
-	_, err := s.client.Post(tradePathFor(tradeID)+"/cancel", nil)
-	return err
+// swapSegments maps a SwapOption.Type to its URL segment under
+// /lol-champ-select/v1/session/. "trades" (champion swap) is confirmed by
+// several independent sources; position-swaps and pick-order-swaps follow
+// the same kebab-case convention the LCU uses elsewhere (and matches how
+// "trades" itself is both the JSON field and the URL segment) but the
+// request/accept/decline/cancel actions on those two haven't been
+// exercised against a live client yet.
+var swapSegments = map[string]string{
+	"champion":  "trades",
+	"position":  "position-swaps",
+	"pickOrder": "pick-order-swaps",
 }
 
-func tradePathFor(id int) string {
-	return "/lol-champ-select/v1/session/trades/" + strconv.Itoa(id)
+func (s *Service) RequestSwap(kind string, id int) error { return s.swapAction(kind, id, "request") }
+func (s *Service) AcceptSwap(kind string, id int) error  { return s.swapAction(kind, id, "accept") }
+func (s *Service) DeclineSwap(kind string, id int) error { return s.swapAction(kind, id, "decline") }
+func (s *Service) CancelSwap(kind string, id int) error  { return s.swapAction(kind, id, "cancel") }
+
+func (s *Service) swapAction(kind string, id int, action string) error {
+	seg, ok := swapSegments[kind]
+	if !ok {
+		return &ValidationError{"Unknown swap type: " + kind}
+	}
+	_, err := s.client.Post("/lol-champ-select/v1/session/"+seg+"/"+strconv.Itoa(id)+"/"+action, nil)
+	return err
 }

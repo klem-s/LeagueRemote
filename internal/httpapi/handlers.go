@@ -64,6 +64,11 @@ func asBool(v interface{}) bool {
 	return b
 }
 
+func asString(v interface{}) string {
+	s, _ := v.(string)
+	return s
+}
+
 func (s *Server) handleAPIPost(w http.ResponseWriter, r *http.Request) {
 	body := readBody(r)
 	switch r.URL.Path {
@@ -75,29 +80,29 @@ func (s *Server) handleAPIPost(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, 200, map[string]interface{}{"ok": true})
 
-	case "/api/trades/request":
-		if err := s.svc.RequestTrade(asInt(body["id"])); err != nil {
+	case "/api/swaps/request":
+		if err := s.svc.RequestSwap(asString(body["type"]), asInt(body["id"])); err != nil {
 			s.writeAPIErr(w, err)
 			return
 		}
 		writeJSON(w, 200, map[string]interface{}{"ok": true})
 
-	case "/api/trades/accept":
-		if err := s.svc.AcceptTrade(asInt(body["id"])); err != nil {
+	case "/api/swaps/accept":
+		if err := s.svc.AcceptSwap(asString(body["type"]), asInt(body["id"])); err != nil {
 			s.writeAPIErr(w, err)
 			return
 		}
 		writeJSON(w, 200, map[string]interface{}{"ok": true})
 
-	case "/api/trades/decline":
-		if err := s.svc.DeclineTrade(asInt(body["id"])); err != nil {
+	case "/api/swaps/decline":
+		if err := s.svc.DeclineSwap(asString(body["type"]), asInt(body["id"])); err != nil {
 			s.writeAPIErr(w, err)
 			return
 		}
 		writeJSON(w, 200, map[string]interface{}{"ok": true})
 
-	case "/api/trades/cancel":
-		if err := s.svc.CancelTrade(asInt(body["id"])); err != nil {
+	case "/api/swaps/cancel":
+		if err := s.svc.CancelSwap(asString(body["type"]), asInt(body["id"])); err != nil {
 			s.writeAPIErr(w, err)
 			return
 		}
