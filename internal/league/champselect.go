@@ -43,9 +43,13 @@ func buildTeams(s map[string]interface{}) Teams {
 	acts := actions(s)
 
 	locked := map[int]bool{}
+	picking := map[int]bool{}
 	for _, a := range acts {
 		if asString(a["type"]) == "pick" && asBool(a["completed"]) {
 			locked[asInt(a["actorCellId"])] = true
+		}
+		if asBool(a["isInProgress"]) {
+			picking[asInt(a["actorCellId"])] = true
 		}
 	}
 
@@ -62,6 +66,7 @@ func buildTeams(s map[string]interface{}) Teams {
 			Name:     asString(c["gameName"]),
 			Me:       cellID == me,
 			Locked:   locked[cellID],
+			Picking:  picking[cellID],
 		}
 	}
 

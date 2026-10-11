@@ -16,6 +16,7 @@ type TeamSlot struct {
 	Name     string `json:"name"`
 	Me       bool   `json:"me"`
 	Locked   bool   `json:"locked"`
+	Picking  bool   `json:"picking"`
 }
 
 type Teams struct {
