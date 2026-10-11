@@ -136,7 +136,7 @@ func (s *Service) Runes() (RunesResult, error) {
 func PageFieldsFrom(body map[string]interface{}) (PageFields, error) {
 	idsRaw, _ := body["selectedPerkIds"].([]interface{})
 	if len(idsRaw) != 9 {
-		return PageFields{}, &ValidationError{"Page incomplète : il faut 9 runes"}
+		return PageFields{}, &ValidationError{"Incomplete page: 9 runes are required"}
 	}
 	ids := make([]int, 9)
 	for i, v := range idsRaw {
@@ -180,7 +180,7 @@ func (s *Service) SavePage(fields PageFields, pageID *int) error {
 			}
 		}
 		if page == nil || !asBool(page["isEditable"]) {
-			return &ValidationError{"Cette page n'est pas modifiable"}
+			return &ValidationError{"This page can't be edited"}
 		}
 		merged := map[string]interface{}{}
 		for k, v := range page {
@@ -208,8 +208,8 @@ func (s *Service) SavePage(fields PageFields, pageID *int) error {
 	if _, err := s.client.Post("/lol-perks/v1/pages", body); err != nil {
 		var remoteErr *RemoteError
 		if errors.As(err, &remoteErr) {
-			return &ValidationError{"Plus de place pour une nouvelle page. Supprime une page, " +
-				"ou active une page perso pour qu'elle soit remplacée."}
+			return &ValidationError{"No room for a new page. Delete a page, " +
+				"or activate a custom one so it gets replaced."}
 		}
 		return err
 	}

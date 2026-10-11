@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -40,7 +40,6 @@ input[type=search],input[type=tel],.lbl input{width:100%;padding:12px 14px;borde
 input:focus{outline:2px solid var(--teal);outline-offset:1px}
 .muted{color:var(--muted)}
 
-/* équipes */
 .teams{display:grid;gap:10px;margin-bottom:14px}
 .sideLabel{font-size:12px;color:var(--muted);margin:0 0 4px}
 .side{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
@@ -58,7 +57,6 @@ input:focus{outline:2px solid var(--teal);outline-offset:1px}
 .bans img{width:24px;height:24px;filter:grayscale(1);opacity:.75}
 .bans .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
 
-/* grille */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px;margin-top:12px}
 .champ{background:none;border:0;padding:0;color:var(--muted);font:12px Inter,sans-serif;text-align:center;cursor:pointer}
 .champ img{display:block;width:100%;aspect-ratio:1;border:2px solid var(--line);background:var(--deep)}
@@ -83,7 +81,6 @@ button.act:disabled{opacity:.35}
 .toggle{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}
 .toggle input{width:20px;height:20px;accent-color:var(--teal)}
 
-/* runes */
 .page{display:flex;align-items:center;border:1px solid var(--line);background:var(--deep);margin-bottom:8px;width:100%}
 .page.active{border-color:var(--teal)}
 .pageMain{flex:1;display:flex;align-items:center;gap:10px;background:none;border:0;color:inherit;padding:10px;
@@ -128,25 +125,25 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 </nav>
 
 <section class="center" id="login" hidden>
-  <p>Entre le code PIN affiché dans la console sur ton PC.</p>
+  <p>Enter the PIN code shown in the LoL Remote window on your PC.</p>
   <input type="tel" id="pin" inputmode="numeric" maxlength="8" placeholder="PIN" style="max-width:200px;text-align:center">
-  <button class="act primary" id="pinBtn">Se connecter</button>
+  <button class="act primary" id="pinBtn">Connect</button>
 </section>
 
 <section class="center" id="idle" hidden>
-  <p id="idleMsg">En attente d'une sélection de champion.</p>
-  <label class="toggle"><input type="checkbox" id="auto"> Accepter les parties automatiquement</label>
+  <p id="idleMsg">Waiting for champ select.</p>
+  <label class="toggle"><input type="checkbox" id="auto"> Auto-accept matches</label>
 </section>
 
 <section class="center" id="ready" hidden>
-  <p>Partie trouvée</p>
-  <button class="act primary big" id="acceptBtn">Accepter</button>
-  <button class="act" id="declineBtn">Refuser</button>
+  <p>Match found</p>
+  <button class="act primary big" id="acceptBtn">Accept</button>
+  <button class="act" id="declineBtn">Decline</button>
 </section>
 
 <main class="pane" id="select" hidden>
   <div class="teams" id="teams"></div>
-  <input type="search" id="search" placeholder="Rechercher un champion" autocomplete="off">
+  <input type="search" id="search" placeholder="Search for a champion" autocomplete="off">
   <div class="grid" id="grid"></div>
 </main>
 
@@ -154,25 +151,25 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
   <div id="recBox" hidden>
     <h2 id="recTitle"></h2>
     <div class="recs"></div>
-    <p class="hint">Remplace ta page active si elle est modifiable, sinon crée une nouvelle page.</p>
+    <p class="hint">Replaces your active page if it's editable, otherwise creates a new one.</p>
   </div>
-  <h2>Tes pages</h2>
+  <h2>Your pages</h2>
   <div id="runeList"></div>
-  <button class="act" id="newPage" style="width:100%;margin-top:4px">Nouvelle page</button>
+  <button class="act" id="newPage" style="width:100%;margin-top:4px">New page</button>
 </section>
 
 <section class="pane" id="editor" hidden>
   <div id="edBody"></div>
   <div class="edActions">
-    <button class="act" id="edCancel">Annuler</button>
-    <button class="act primary" id="edSave">Enregistrer et activer</button>
+    <button class="act" id="edCancel">Cancel</button>
+    <button class="act primary" id="edSave">Save and activate</button>
   </div>
 </section>
 
 <footer id="bar" hidden>
   <div class="pick" id="pickInfo"></div>
-  <button class="act" id="hoverBtn">Survoler</button>
-  <button class="act primary" id="lockBtn">Verrouiller</button>
+  <button class="act" id="hoverBtn">Hover</button>
+  <button class="act primary" id="lockBtn">Lock in</button>
 </footer>
 
 <div class="toast" id="toast"></div>
@@ -193,9 +190,9 @@ let R = null, ed = null;
 
 const VIEWS = ["login","idle","ready","select","runes","editor"];
 const ROLES = {top:"Top", jungle:"Jungle", middle:"Mid", bottom:"ADC", utility:"Support"};
-const PHASES = {None:"Client ouvert", Lobby:"Dans le salon", Matchmaking:"Recherche de partie…",
-  ReadyCheck:"Partie trouvée", ChampSelect:"Sélection des champions", InProgress:"En jeu",
-  GameStart:"Chargement", WaitingForStats:"Fin de partie", EndOfGame:"Fin de partie", PreEndOfGame:"Fin de partie"};
+const PHASES = {None:"Client open", Lobby:"In lobby", Matchmaking:"Finding match…",
+  ReadyCheck:"Match found", ChampSelect:"Champ select", InProgress:"In game",
+  GameStart:"Loading", WaitingForStats:"Post-game", EndOfGame:"Post-game", PreEndOfGame:"Post-game"};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const asset = p => p ? "/asset?p=" + encodeURIComponent(p) : "";
@@ -215,7 +212,7 @@ async function api(path, body){
     headers: {"X-Pin": pin, "Content-Type": "application/json"}, body: body ? JSON.stringify(body) : undefined});
   if (r.status === 401) { show("login"); throw new Error("pin"); }
   const data = await r.json();
-  if (!r.ok) throw new Error(data.error || "Erreur");
+  if (!r.ok) throw new Error(data.error || "Error");
   return data;
 }
 const fail = e => { if (e.message !== "pin") toast(e.message); };
@@ -226,7 +223,6 @@ async function loadChamps(){
   champById = Object.fromEntries(champs.map(c => [c.id, c]));
 }
 
-/* ------------------------------------------------ onglets */
 function setTab(t){
   tab = t;
   $("tabChamp").setAttribute("aria-selected", t === "champ");
@@ -236,15 +232,14 @@ function setTab(t){
 $("tabChamp").onclick = () => setTab("champ");
 $("tabRunes").onclick = () => setTab("runes");
 
-/* ------------------------------------------------ boucle principale */
 async function tick(){
   if (!pin) { show("login"); return; }
   try { st = await api("/api/state"); } catch(e) { return; }
   $("auto").checked = st.autoAccept;
   const t = $("timer"); t.textContent = ""; t.classList.remove("low");
   if (!st.connected) {
-    $("phase").textContent = "Client League fermé"; $("tabs").hidden = true;
-    $("idleMsg").textContent = "Lance League of Legends sur ton PC."; show("idle"); return;
+    $("phase").textContent = "League client closed"; $("tabs").hidden = true;
+    $("idleMsg").textContent = "Start League of Legends on your PC."; show("idle"); return;
   }
   $("tabs").hidden = false;
   $("phase").textContent = PHASES[st.phase] || st.phase;
@@ -254,22 +249,21 @@ async function tick(){
   else if (["ready","idle"].includes(currentView())) ed ? show("editor") : openRunes();
 }
 
-/* ------------------------------------------------ sélection */
 async function renderChamp(){
   if (!st || st.phase !== "ChampSelect" || !st.select) {
-    $("idleMsg").textContent = "En attente d'une sélection de champion.";
+    $("idleMsg").textContent = "Waiting for champ select.";
     chosen = 0; show("idle"); return;
   }
   try { await loadChamps(); } catch(e) { return; }
   if (tab !== "champ") return;
-  if (!st.select.action && st.select.lockedChampion) $("phase").textContent = "Champion verrouillé";
+  if (!st.select.action && st.select.lockedChampion) $("phase").textContent = "Champion locked in";
   show("select"); renderTeams(); renderGrid(); renderBar();
 }
 
 function slot(c){
   const id = c.champion || c.intent;
-  let label = c.me ? "Toi" : (c.name || ROLES[c.position] || "");
-  if (c.picking) label = "En train de choisir…";
+  let label = c.me ? "You" : (c.name || ROLES[c.position] || "");
+  if (c.picking) label = "Picking…";
   const pic = id ? `<img src="/icon/${id}" alt="" class="${c.locked ? "" : "intent"}">` : `<div class="empty"></div>`;
   return `<div class="slot${c.me ? " me" : ""}${c.picking ? " picking" : ""}">${pic}<span>${esc(label)}</span><small>${esc(champById[id]?.name || "")}</small></div>`;
 }
@@ -278,8 +272,8 @@ function renderTeams(){
   const key = JSON.stringify(T); if (key === teamsKey) return; teamsKey = key;
   const ban = id => `<img src="/icon/${id}" alt="${esc(champById[id]?.name || "")}">`;
   $("teams").innerHTML =
-    `<div><p class="sideLabel">Ton équipe</p><div class="side">${T.allies.map(slot).join("")}</div></div>` +
-    (T.enemies.length ? `<div class="enemy"><p class="sideLabel">Adversaires</p><div class="side">${T.enemies.map(slot).join("")}</div></div>` : "") +
+    `<div><p class="sideLabel">Your team</p><div class="side">${T.allies.map(slot).join("")}</div></div>` +
+    (T.enemies.length ? `<div class="enemy"><p class="sideLabel">Opponents</p><div class="side">${T.enemies.map(slot).join("")}</div></div>` : "") +
     ((T.allyBans.length || T.enemyBans.length)
       ? `<div class="bans">Bans ${T.allyBans.map(ban).join("")}<span class="sep"></span>${T.enemyBans.map(ban).join("")}</div>` : "");
 }
@@ -306,9 +300,9 @@ function renderBar(){
   const c = champById[chosen];
   const isBan = a?.type === "ban";
   $("pickInfo").innerHTML = c
-    ? `<img src="/icon/${c.id}" alt=""><div><b>${esc(c.name)}</b><small>${isBan ? "À bannir" : "À jouer"}</small></div>`
-    : `<div><small>${a ? (isBan ? "Choisis un champion à bannir" : "Choisis ton champion") : "Rien à faire pour l'instant"}</small></div>`;
-  $("lockBtn").textContent = isBan ? "Bannir" : "Verrouiller";
+    ? `<img src="/icon/${c.id}" alt=""><div><b>${esc(c.name)}</b><small>${isBan ? "To ban" : "To play"}</small></div>`
+    : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
+  $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
   $("hoverBtn").disabled = !a || !chosen;
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
@@ -322,13 +316,12 @@ $("hoverBtn").onclick = () => send(false);
 $("lockBtn").onclick = () => send(true);
 $("search").oninput = renderGrid;
 
-/* ------------------------------------------------ runes : liste */
 const styleById = id => R?.styles.find(s => s.id === id);
 const perk = id => R?.perks[id];
 
 async function openRunes(){
   ed = null; show("runes");
-  if (!R) $("runeList").innerHTML = `<p class="muted">Chargement…</p>`;
+  if (!R) $("runeList").innerHTML = `<p class="muted">Loading…</p>`;
   try { R = await api("/api/runes"); } catch(e) {
     if (e.message !== "pin") $("runeList").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return;
   }
@@ -338,23 +331,23 @@ async function openRunes(){
 function renderRunes(){
   $("runeList").innerHTML = R.pages.map(p => {
     const active = p.id === R.currentId;
-    const status = active ? "Page active" : (p.editable ? "Toucher pour activer" : "Page par défaut");
+    const status = active ? "Active page" : (p.editable ? "Tap to activate" : "Default page");
     return `<div class="page${active ? " active" : ""}">
       <button class="pageMain" data-act="use" data-id="${p.id}">${img(perk(p.perks[0])?.icon, "ks")}${img(styleById(p.sub)?.icon, "sub")}
         <span><b>${esc(p.name)}</b><small>${status}</small></span></button>
-      ${p.editable ? `<button class="mini" data-act="edit" data-id="${p.id}">Modifier</button>
-      <button class="mini" data-act="del" data-id="${p.id}" aria-label="Supprimer ${esc(p.name)}">✕</button>` : ""}
+      ${p.editable ? `<button class="mini" data-act="edit" data-id="${p.id}">Edit</button>
+      <button class="mini" data-act="del" data-id="${p.id}" aria-label="Delete ${esc(p.name)}">✕</button>` : ""}
     </div>`;
-  }).join("") || `<p class="muted">Aucune page.</p>`;
+  }).join("") || `<p class="muted">No pages.</p>`;
 }
 
 $("runeList").onclick = async e => {
   const b = e.target.closest("button[data-act]"); if (!b) return;
   const id = +b.dataset.id, page = R.pages.find(p => p.id === id);
   try {
-    if (b.dataset.act === "use") { await api("/api/runes/activate", {id}); toast(`« ${page.name} » activée`, true); openRunes(); }
+    if (b.dataset.act === "use") { await api("/api/runes/activate", {id}); toast(`"${page.name}" activated`, true); openRunes(); }
     if (b.dataset.act === "edit") openEditor(page);
-    if (b.dataset.act === "del" && confirm(`Supprimer « ${page.name} » ?`)) { await api("/api/runes/delete", {id}); openRunes(); }
+    if (b.dataset.act === "del" && confirm(`Delete "${page.name}"?`)) { await api("/api/runes/delete", {id}); openRunes(); }
   } catch(e) { fail(e); }
 };
 $("newPage").onclick = () => openEditor(null);
@@ -366,14 +359,14 @@ async function loadRecommended(){
     await loadChamps();
     const r = await api("/api/runes/recommended");
     if (!r.pages.length || tab !== "runes") return;
-    const name = champById[r.champion]?.name || "ton champion";
-    $("recTitle").textContent = "Recommandées pour " + name;
+    const name = champById[r.champion]?.name || "your champion";
+    $("recTitle").textContent = "Recommended for " + name;
     box._recs = r.pages; box._name = name;
     box.querySelector(".recs").innerHTML = r.pages.map((p, i) => {
       const role = ROLES[(p.position || "").toLowerCase()];
       return `<button class="page pageMain rec" data-i="${i}">${img(perk(p.perks[0])?.icon, "ks")}${img(styleById(p.sub)?.icon, "sub")}
         <span><b>${esc(perk(p.perks[0])?.name || "")}</b><small>${esc(styleById(p.primary)?.name || "")} + ${esc(styleById(p.sub)?.name || "")}${role ? ", " + role : ""}</small></span>
-        <em>Appliquer</em></button>`;
+        <em>Apply</em></button>`;
     }).join("");
     box.hidden = false;
   } catch(e) {}
@@ -383,11 +376,10 @@ $("recBox").onclick = async e => {
   const box = $("recBox"), p = box._recs[+b.dataset.i];
   try {
     const r = await api("/api/runes/apply", {name: box._name, primaryStyleId: p.primary, subStyleId: p.sub, selectedPerkIds: p.perks});
-    toast(`Runes appliquées sur « ${r.page} »`, true); openRunes();
+    toast(`Runes applied to "${r.page}"`, true); openRunes();
   } catch(e) { fail(e); }
 };
 
-/* ------------------------------------------------ runes : éditeur */
 function openEditor(page){
   if (page) {
     const sub = styleById(page.sub);
@@ -396,7 +388,7 @@ function openEditor(page){
     ed = {id: page.id, name: page.name, primary: page.primary, sub: page.sub, keystone: page.perks[0],
           prim: page.perks.slice(1, 4), secs, shards: page.perks.slice(6, 9)};
   } else {
-    ed = {id: null, name: "Ma page", primary: 0, sub: 0, keystone: 0, prim: [0,0,0], secs: [], shards: [0,0,0]};
+    ed = {id: null, name: "My page", primary: 0, sub: 0, keystone: 0, prim: [0,0,0], secs: [], shards: [0,0,0]};
   }
   show("editor"); renderEd();
 }
@@ -415,18 +407,18 @@ const valid = () => ed.primary && ed.sub && ed.keystone && ed.prim.every(Boolean
 
 function renderEd(){
   const P = styleById(ed.primary), S = styleById(ed.sub);
-  let h = `<label class="lbl">Nom de la page<input id="edName" value="${esc(ed.name)}" maxlength="40"></label>`;
-  h += `<h2>Arbre principal</h2>` + styleRow(R.styles.map(s => s.id), ed.primary, "primary");
+  let h = `<label class="lbl">Page name<input id="edName" value="${esc(ed.name)}" maxlength="40"></label>`;
+  h += `<h2>Primary tree</h2>` + styleRow(R.styles.map(s => s.id), ed.primary, "primary");
   if (P) {
     h += perkRow(P.keystones, ed.keystone, "ks", 0, "big");
     P.rows.forEach((row, i) => h += perkRow(row, ed.prim[i], "prim", i));
     const subs = (P.allowedSub?.length ? P.allowedSub : R.styles.map(s => s.id)).filter(id => id !== P.id);
-    h += `<h2>Arbre secondaire</h2>` + styleRow(subs, ed.sub, "sub");
+    h += `<h2>Secondary tree</h2>` + styleRow(subs, ed.sub, "sub");
     if (S) {
       S.rows.forEach((row, i) => { const s = ed.secs.find(x => x.row === i); h += perkRow(row, s ? s.perk : 0, "sec", i); });
-      h += `<p class="hint">Choisis 2 runes sur 2 lignes différentes.</p>`;
+      h += `<p class="hint">Choose 2 runes from 2 different rows.</p>`;
     }
-    h += `<h2>Fragments</h2>`;
+    h += `<h2>Shards</h2>`;
     P.shards.forEach((row, i) => h += perkRow(row, ed.shards[i], "shard", i, "small"));
   }
   $("edBody").innerHTML = h;
@@ -453,16 +445,15 @@ $("edBody").onclick = e => {
 };
 $("edCancel").onclick = () => openRunes();
 $("edSave").onclick = async () => {
-  ed.name = $("edName").value.trim() || "Ma page";
+  ed.name = $("edName").value.trim() || "My page";
   const secs = [...ed.secs].sort((a, b) => a.row - b.row).map(x => x.perk);
   try {
     await api("/api/runes/save", {id: ed.id, name: ed.name, primaryStyleId: ed.primary, subStyleId: ed.sub,
       selectedPerkIds: [ed.keystone, ...ed.prim, ...secs, ...ed.shards]});
-    toast(`« ${ed.name} » enregistrée et activée`, true); openRunes();
+    toast(`"${ed.name}" saved and activated`, true); openRunes();
   } catch(e) { fail(e); }
 };
 
-/* ------------------------------------------------ divers */
 $("acceptBtn").onclick = () => api("/api/accept", {}).then(tick).catch(fail);
 $("declineBtn").onclick = () => api("/api/decline", {}).then(tick).catch(fail);
 $("auto").onchange = e => api("/api/auto-accept", {enabled: e.target.checked}).catch(fail);

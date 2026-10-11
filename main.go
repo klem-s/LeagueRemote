@@ -1,8 +1,8 @@
-// LoL Remote - choisis ton champion, tes runes et suis la draft depuis ton téléphone.
+// LoL Remote - pick, ban and manage your runes from your phone during champ
+// select.
 //
-// Lance l'exécutable : une icône apparaît dans la zone de notification avec
-// l'adresse et le code PIN à saisir sur le téléphone (même Wi-Fi que le PC).
-// Un seul exécutable, aucune installation.
+// Run the executable: a tray icon appears with the address and PIN to enter
+// on your phone (same Wi-Fi as this PC). Single binary, no install.
 //
 // This is the composition root: it is the only place that wires the
 // concrete lcu.Client (infrastructure) into league.Service (use cases)
@@ -26,8 +26,8 @@ import (
 	"lolremote/internal/updatecheck"
 )
 
-// Port par défaut : moins commun que 8080, pour limiter les conflits
-// avec d'autres outils locaux. Choisi arbitrairement, sans signification.
+// Default port: less common than 8080, to cut down on clashes with other
+// local tools. Picked arbitrarily, no significance.
 const defaultPort = 53217
 
 const githubRepo = "klem-s/LeagueRemote"
@@ -68,8 +68,6 @@ func main() {
 		pin = strconv.Itoa(1000 + rand.Intn(9000))
 	}
 
-	// Port fixe par défaut (moins commun que 8080, donc moins souvent pris
-	// par autre chose) ; si déjà occupé, le système en choisit un libre.
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", defaultPort))
 	if err != nil {
 		listener, err = net.Listen("tcp", "0.0.0.0:0")
@@ -94,5 +92,5 @@ func main() {
 
 	update := checkForUpdate()
 
-	trayui.Run(pin, url, update) // bloque : boucle de l'icône dans la zone de notification
+	trayui.Run(pin, url, update)
 }

@@ -46,8 +46,8 @@ func (s *Service) SetAutoAccept(v bool) {
 	s.autoAcceptMu.Unlock()
 }
 
-// Watch accepte automatiquement les parties tant que l'option est activée.
-// Meant to run in its own goroutine for the life of the process.
+// Watch auto-accepts ready checks while the option is enabled. Meant to run
+// in its own goroutine for the life of the process.
 func (s *Service) Watch() {
 	for {
 		if s.AutoAccept() {

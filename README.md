@@ -1,104 +1,104 @@
 # LoL Remote
 
-Télécommande mobile pour le client League of Legends : accepter les parties, choisir et bannir son champion, gérer ses pages de runes et suivre la draft depuis son téléphone.
+Mobile remote for the League of Legends client: accept matches, pick and ban your champion, manage your rune pages, and follow the draft from your phone.
 
-Réécriture en Go du script Python original (voir « Historique » plus bas) : un exécutable Windows unique, sans Python ni dépendance à installer.
+Go rewrite of the original Python script (see "History" below): a single Windows executable, no Python or dependency to install.
 
 ## Installation
 
-Télécharger `lol-remote.exe` depuis la page [Releases](../../releases) et le lancer (double-clic). Aucune console ne s'ouvre : une icône apparaît dans la zone de notification, avec une fenêtre qui affiche l'adresse et le code PIN à saisir sur le téléphone.
+Download `lol-remote.exe` from the [Releases](../../releases) page and run it (double-click). No console opens: a tray icon appears, along with a window showing the address and PIN to enter on your phone.
 
-Autoriser l'exécutable dans le pare-feu Windows (réseaux privés) au premier lancement.
+Allow the executable through the Windows firewall (private networks) on first launch.
 
 ## Architecture
 
 ```
-Téléphone (PWA)  ──HTTP/HTTPS──▶  lol-remote.exe (PC, port 53217)  ──HTTPS local──▶  Client League (LCU API)
+Phone (PWA)  ──HTTP/HTTPS──▶  lol-remote.exe (PC, port 53217)  ──HTTPS local──▶  League client (LCU API)
 ```
 
-Le client League expose une API REST non officielle, la **LCU API**, qui n'écoute que sur `127.0.0.1`. Le téléphone ne peut donc pas lui parler directement : `lol-remote.exe` sert de relais.
+The League client exposes an unofficial REST API, the **LCU API**, which only listens on `127.0.0.1`. The phone can't talk to it directly, so `lol-remote.exe` acts as a relay.
 
-### Connexion à la LCU
+### Connecting to the LCU
 
-- Le port et le jeton d'authentification du client sont lus directement sur le processus `LeagueClientUx.exe` (ligne de commande, via PowerShell), ce qui fonctionne quel que soit le dossier d'installation.
-- En variante, la variable d'environnement `LOL_REMOTE_LOCKFILE` peut pointer vers le `lockfile` du client si on préfère cette méthode.
-- Authentification en Basic Auth, utilisateur `riot`. Le certificat du client est auto-signé, donc la vérification SSL est désactivée pour ces requêtes.
-- Le port et le mot de passe changent à chaque redémarrage du client ; une erreur 401/403 ou de connexion déclenche une relecture automatique des identifiants.
+- The client's port and auth token are read directly from the running `LeagueClientUx.exe` process (command line, via PowerShell), which works regardless of install location.
+- As an alternative, the `LOL_REMOTE_LOCKFILE` environment variable can point at the client's `lockfile` instead.
+- Basic Auth, user `riot`. The client's certificate is self-signed, so SSL verification is disabled for these requests.
+- The port and password change every time the client restarts; a 401/403 or connection error triggers an automatic re-read of the credentials.
 
-## Lancement
+## Running it
 
 ```
 lol-remote.exe
 ```
 
-Une fenêtre affiche l'adresse, le code PIN et un code QR au démarrage ; scanner le QR ouvre l'app et connecte directement, sans ressaisir le PIN. L'icône dans la zone de notification permet de rouvrir cette fenêtre à tout moment, ou de quitter.
+A window shows the address, PIN and a QR code on launch; scanning the QR opens the app and logs straight in, no need to retype the PIN. The tray icon lets you reopen this window at any time, or quit.
 
-Le PIN est aléatoire à chaque lancement, sauf si la variable d'environnement `LOL_REMOTE_PIN` est définie. Le port par défaut est `53217` ; s'il est déjà pris, un port libre est choisi automatiquement.
+The PIN is random on every launch unless the `LOL_REMOTE_PIN` environment variable is set. The default port is `53217`; if it's already taken, a free one is chosen automatically.
 
-### Accès hors du Wi-Fi (optionnel)
+### Access outside Wi-Fi (optional)
 
-Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 53217` rend l'app accessible en `https://<pc>.<tailnet>.ts.net`, y compris en 4G (adapter le port si l'app en a choisi un autre).
+With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app reachable at `https://<pc>.<tailnet>.ts.net`, including over mobile data (adjust the port if the app picked a different one).
 
-## Fonctionnalités
+## Features
 
-**Partie et sélection**
-- Écran « Partie trouvée » avec boutons Accepter / Refuser, plus une option d'acceptation automatique.
-- Grille des champions avec recherche. Les champions non jouables ou déjà pris sont grisés.
-- Survoler ou verrouiller un pick. Phase de ban gérée (bouton « Bannir »).
-- Chronomètre de la phase, en rouge sous 10 secondes.
-- Aperçu de la draft : picks et hovers alliés (hover en transparence), picks ennemis, bans des deux équipes, rôles. Les pseudos s'affichent seulement quand le client les fournit (Riot les masque en classée).
+**Match and champ select**
+- "Match found" screen with Accept/Decline, plus an auto-accept option.
+- Champion grid with search. Unplayable or already-taken champions are greyed out.
+- Hover or lock in a pick. Ban phase handled (Ban button).
+- Phase timer, turns red under 10 seconds.
+- Draft overview: ally picks and hovers (hover shown translucent), enemy picks, both teams' bans, roles, and a highlight on whoever is currently picking. Names only show when the client provides them (Riot hides them in ranked).
 
 **Runes**
-- Liste des pages, activation en un tap, suppression des pages modifiables.
-- Éditeur complet : arbre principal et clé de voûte, 3 lignes principales, arbre secondaire (2 runes sur 2 lignes différentes), 3 lignes de fragments.
-- Runes recommandées par le client pour le champion choisi et le rôle assigné. « Appliquer » écrase la page active si elle est modifiable, sinon crée une nouvelle page.
+- Page list, one-tap activation, delete editable pages.
+- Full editor: primary tree and keystone, 3 primary rows, secondary tree (2 runes on 2 different rows), 3 shard rows.
+- Client-recommended runes for the chosen champion and assigned role. "Apply" overwrites the active page if it's editable, otherwise creates a new one.
 
 **Web app**
-- Manifest et icône générés en PNG au démarrage : l'app s'ajoute à l'écran d'accueil et s'ouvre en plein écran.
+- Manifest and icon generated as PNG on launch: the app can be added to the home screen and opens full-screen.
 
-**Sur le PC**
-- Pas de console : une icône dans la zone de notification, menu « Show » (adresse, PIN et QR dans une fenêtre reprenant le thème hextech de l'app mobile, en anglais) et « Quit ».
-- Si le runtime WebView2 n'est pas installé (rare — présent par défaut sur Windows 11 et déployé par Windows Update sur la plupart des Windows 10), repli automatique sur une boîte de dialogue système.
-- Une seule instance à la fois : relancer l'exécutable pendant qu'il tourne déjà affiche juste un message au lieu d'ouvrir une deuxième icône/serveur.
-- Vérification d'une nouvelle version au démarrage (releases GitHub) ; si une version plus récente existe, un bouton dans la fenêtre y renvoie. Aucun téléchargement ni remplacement automatique.
+**On the PC**
+- No console: a tray icon, "Show" menu item (address, PIN and QR in a window matching the mobile app's hextech theme) and "Quit".
+- If the WebView2 runtime isn't installed (rare — present by default on Windows 11 and deployed via Windows Update on most Windows 10 machines), falls back automatically to a system dialog.
+- Single instance only: relaunching the executable while it's already running just shows a message instead of opening a second icon/server.
+- Checks for a newer version on launch (GitHub releases); if one exists, a button in the window links to it. No auto-download or replacement.
 
-## Structure du projet
+## Project structure
 
-Architecture en couches (clean architecture) :
+Layered (clean architecture):
 
-| Package | Rôle |
+| Package | Role |
 |---|---|
-| `internal/league` | Cas d'usage : `Service`, modèles de données, interface `Client` (le port), erreurs métier. Ne dépend de rien d'autre dans ce projet. |
-| `internal/lcu` | Adaptateur : implémente `league.Client` par-dessus l'API LCU réelle (HTTPS, découverte des identifiants). |
-| `internal/icon` | Génération de l'icône PNG/ICO et du manifest, sans dépendance. |
-| `internal/httpapi` | Adaptateur HTTP : routes, JSON, PIN, page mobile embarquée (`page.html`). Ne dépend que de `league` et `icon`. |
-| `internal/trayui` | Icône de la zone de notification et fenêtre d'info (`popup.html`, Windows uniquement, `//go:build windows`) ; une version de repli console-only compile sur les autres OS pour le développement. |
-| `internal/singleinstance` | Mutex Windows nommé empêchant deux instances de tourner en même temps. |
-| `internal/updatecheck` | Appelle l'API GitHub (`/releases/latest`) pour savoir si une version plus récente existe. |
-| `main.go` | Racine de composition : assemble `lcu.Client` → `league.Service` → `httpapi.Server` → `trayui`. |
+| `internal/league` | Use cases: `Service`, data models, the `Client` interface (the port), business errors. Depends on nothing else in this project. |
+| `internal/lcu` | Adapter: implements `league.Client` on top of the real LCU API (HTTPS, credential discovery). |
+| `internal/icon` | PNG/ICO icon and manifest generation, no dependency. |
+| `internal/httpapi` | HTTP adapter: routes, JSON, PIN check, embedded mobile page (`page.html`). Depends only on `league` and `icon`. |
+| `internal/trayui` | Tray icon and info window (`popup.html`, Windows only, `//go:build windows`); a console-only fallback compiles on other OSes for development. |
+| `internal/singleinstance` | Named Windows mutex preventing two instances from running at once. |
+| `internal/updatecheck` | Calls the GitHub API (`/releases/latest`) to check for a newer version. |
+| `main.go` | Composition root: wires `lcu.Client` → `league.Service` → `httpapi.Server` → `trayui`. |
 
-### Routes du serveur
+### Server routes
 
-Toutes les routes `/api/*` exigent l'en-tête `X-Pin`.
+All `/api/*` routes require the `X-Pin` header.
 
-| Méthode | Route | Rôle |
+| Method | Route | Role |
 |---|---|---|
-| GET | `/` | page mobile |
+| GET | `/` | mobile page |
 | GET | `/manifest.webmanifest`, `/icon-192.png`, `/icon-512.png` | web app |
-| GET | `/icon/<id>` | icône d'un champion (proxy LCU, en cache) |
-| GET | `/asset?p=/lol-game-data/assets/...` | proxy des images du client (runes, arbres) |
-| GET | `/api/state` | phase, état de la sélection, action du joueur, équipes |
-| GET | `/api/champions` | liste `{id, name}` |
-| GET | `/api/runes` | pages, page active, arbres et runes |
-| GET | `/api/runes/recommended` | runes conseillées pour le champion en cours |
-| POST | `/api/select` | `{actionId, championId, lock}` : survole puis verrouille si `lock` |
+| GET | `/icon/<id>` | a champion's icon (LCU proxy, cached) |
+| GET | `/asset?p=/lol-game-data/assets/...` | proxy for client images (runes, trees) |
+| GET | `/api/state` | phase, select state, player's pending action, teams |
+| GET | `/api/champions` | `{id, name}` list |
+| GET | `/api/runes` | pages, active page, trees and runes |
+| GET | `/api/runes/recommended` | recommended runes for the current champion |
+| POST | `/api/select` | `{actionId, championId, lock}`: hovers, then locks in if `lock` |
 | POST | `/api/accept`, `/api/decline` | ready check |
 | POST | `/api/auto-accept` | `{enabled}` |
 | POST | `/api/runes/activate`, `/api/runes/delete` | `{id}` |
 | POST | `/api/runes/save` | `{id?, name, primaryStyleId, subStyleId, selectedPerkIds[9]}` |
-| POST | `/api/runes/apply` | mêmes champs, sur la page active ou une nouvelle page |
+| POST | `/api/runes/apply` | same fields, onto the active page or a new one |
 
-## Compiler depuis les sources
+## Building from source
 
 ```
 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui -X main.version=v0.0.0-dev" -o lol-remote.exe .
@@ -106,28 +106,28 @@ GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui -X main.version
 
 `-X main.version=...` embeds the version the update check compares against GitHub's latest release; the release CI sets it from the pushed tag automatically. Omit it (or leave it as the default `dev`) for local builds — the update check just skips itself.
 
-`-H=windowsgui` évite qu'une console s'ouvre derrière l'icône de la zone de notification. Trois dépendances (aucune cgo, donc compatible cross-compilation depuis Linux/macOS) :
-- [`getlantern/systray`](https://github.com/getlantern/systray) pour l'icône de la zone de notification.
-- [`jchv/go-webview2`](https://github.com/jchv/go-webview2) pour la fenêtre (liaison pure Go vers le contrôle WebView2 de Windows).
-- [`skip2/go-qrcode`](https://github.com/skip2/go-qrcode) pour générer le code QR embarqué dans cette fenêtre.
+`-H=windowsgui` keeps a console from opening behind the tray icon. Three dependencies (none use cgo, so cross-compilation from Linux/macOS works):
+- [`getlantern/systray`](https://github.com/getlantern/systray) for the tray icon.
+- [`jchv/go-webview2`](https://github.com/jchv/go-webview2) for the window (pure-Go binding to Windows' WebView2 control).
+- [`skip2/go-qrcode`](https://github.com/skip2/go-qrcode) to generate the QR code embedded in that window.
 
-## Publier une release
+## Publishing a release
 
-Chaque tag `vX.Y.Z` poussé sur GitHub déclenche la CI (`.github/workflows/release.yml`), qui compile `lol-remote.exe` pour Windows et publie une Release avec le binaire joint.
+Every `vX.Y.Z` tag pushed to GitHub triggers CI (`.github/workflows/release.yml`), which builds `lol-remote.exe` for Windows and publishes a Release with the binary attached.
 
 ```
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-## Points d'attention
+## Things to watch for
 
-- La LCU n'est pas une API officielle : les endpoints peuvent changer après un patch.
-- `champion-summary.json` contient des variantes de modes spéciaux avec le même nom et un autre ID ; on garde l'ID le plus petit par nom.
-- Pendant un ban, la liste des champions autorisés est calculée côté serveur (tous sauf ceux déjà bannis ou verrouillés), car `bannable-champion-ids` n'est pas fiable.
-- Sur certaines versions, la modification d'une page (`PUT`) échoue : la page est alors supprimée puis recréée.
-- En `http` sur le Wi-Fi, le PIN circule en clair sur le réseau local. Ne pas exposer le port directement sur Internet.
+- The LCU isn't an official API: endpoints can change after a patch.
+- `champion-summary.json` contains special-mode variants sharing a name with a different ID; the smallest ID per name is kept.
+- During a ban, the allowed-champion list is computed server-side (everything except already-banned or locked-in champions), since `bannable-champion-ids` isn't reliable.
+- On some client versions, editing a page (`PUT`) fails: the page is then deleted and recreated.
+- Over `http` on Wi-Fi, the PIN travels in the clear on the local network. Don't expose the port directly to the Internet.
 
-## Historique
+## History
 
-Ce projet a démarré comme un script Python unique (`lol_remote.py`, bibliothèque standard uniquement), pour éviter à chaque joueur d'installer Python. La réécriture en Go produit un exécutable natif à la place.
+This project started as a single Python script (`lol_remote.py`, standard library only), to spare every player from installing Python. The Go rewrite produces a native executable instead.
