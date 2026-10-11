@@ -121,6 +121,15 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 .lbl{display:block;color:var(--muted);font-size:13px}
 .lbl input{margin-top:4px}
 .hint{text-align:center;color:var(--muted);font-size:12px;margin:6px 0 0}
+.statSummary{text-align:center;padding:18px 0 22px}
+.statSummary .wr{font:400 44px Marcellus,Georgia,serif;color:var(--gold-hi)}
+.statSummary .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.statRow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--deep);
+  margin-bottom:8px;padding:8px 10px}
+.statRow img{width:36px;height:36px;border-radius:50%;flex:none}
+.statRow .name{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.statRow .wr{font-size:13px;color:var(--teal);min-width:4.5ch;text-align:right}
+.statRow .games{color:var(--muted);font-size:12px;min-width:6ch;text-align:right}
 .edActions{display:flex;gap:10px;position:sticky;bottom:-16px;background:var(--abyss);padding:12px 0 16px;margin-top:12px}
 .edActions button{flex:1}
 
@@ -139,6 +148,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 <nav class="tabs" id="tabs" hidden>
   <button id="tabChamp" aria-selected="true">Champion</button>
   <button id="tabRunes" aria-selected="false">Runes</button>
+  <button id="tabStats" aria-selected="false">Stats</button>
 </nav>
 
 <section class="center" id="login" hidden>
@@ -177,6 +187,11 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
   <button class="act" id="newPage" style="width:100%;margin-top:4px">New page</button>
 </section>
 
+<section class="pane" id="stats" hidden>
+  <div id="statsBody"><p class="muted">Loading…</p></div>
+  <button class="act" id="statsRefresh" style="width:100%;margin-top:4px">Refresh</button>
+</section>
+
 <section class="pane" id="editor" hidden>
   <div id="edBody"></div>
   <div class="edActions">
@@ -206,9 +221,9 @@ if (qsPin) {
 }
 let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
 let autoFilledFor = null; // action id already carried a preview into `chosen` for
-let R = null, ed = null;
+let R = null, ed = null, STATS = null;
 
-const VIEWS = ["login","idle","ready","select","runes","editor"];
+const VIEWS = ["login","idle","ready","select","runes","stats","editor"];
 const ROLES = {top:"Top", jungle:"Jungle", middle:"Mid", bottom:"ADC", utility:"Support"};
 const PHASES = {None:"Client open", Lobby:"In lobby", Matchmaking:"Finding match…",
   ReadyCheck:"Match found", ChampSelect:"Champ select", InProgress:"In game",
@@ -253,10 +268,14 @@ function setTab(t){
   tab = t;
   $("tabChamp").setAttribute("aria-selected", t === "champ");
   $("tabRunes").setAttribute("aria-selected", t === "runes");
-  if (t === "runes") openRunes(); else { lastKey = teamsKey = ""; renderChamp(); }
+  $("tabStats").setAttribute("aria-selected", t === "stats");
+  if (t === "runes") openRunes();
+  else if (t === "stats") openStats();
+  else { lastKey = teamsKey = ""; renderChamp(); }
 }
 $("tabChamp").onclick = () => setTab("champ");
 $("tabRunes").onclick = () => setTab("runes");
+$("tabStats").onclick = () => setTab("stats");
 
 async function tick(){
   if (!pin) { show("login"); return; }
@@ -279,6 +298,7 @@ async function tick(){
   $("tabs").hidden = false;
   if (st.phase === "ReadyCheck" && !st.autoAccept) { show("ready"); return; }
   if (tab === "champ") renderChamp();
+  else if (tab === "stats") { if (["ready","idle"].includes(currentView())) openStats(); }
   else if (["ready","idle"].includes(currentView())) ed ? show("editor") : openRunes();
 }
 
@@ -431,6 +451,42 @@ $("search").oninput = renderGrid;
 
 const styleById = id => R?.styles.find(s => s.id === id);
 const perk = id => R?.perks[id];
+
+async function openStats(force){
+  show("stats");
+  if (STATS && !force) { renderStats(); return; }
+  $("statsBody").innerHTML = `<p class="muted">Loading…</p>`;
+  try { STATS = await api("/api/stats"); } catch(e) {
+    if (e.message !== "pin") $("statsBody").innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+    return;
+  }
+  renderStats();
+}
+$("statsRefresh").onclick = () => openStats(true);
+
+function renderStats(){
+  if (!STATS || !STATS.games) {
+    $("statsBody").innerHTML = `<p class="muted">No recent games found.</p>`;
+    return;
+  }
+  const wr = STATS.winRate.toFixed(0);
+  const losses = STATS.games - STATS.wins;
+  const champRows = (STATS.perChampion || []).map(c => `
+    <div class="statRow">
+      <img src="/icon/${c.championId}" alt="">
+      <span class="name">${esc(c.championName || "Unknown")}</span>
+      <span class="wr">${c.winRate.toFixed(0)}% WR</span>
+      <span class="games">${c.wins}W ${c.games - c.wins}L</span>
+    </div>`).join("");
+  $("statsBody").innerHTML = `
+    <div class="statSummary">
+      <div class="wr">${wr}% winrate</div>
+      <div class="sub">${STATS.wins}W ${losses}L over last ${STATS.games} games &middot; ${(STATS.kills / STATS.games).toFixed(1)} / ${(STATS.deaths / STATS.games).toFixed(1)} / ${(STATS.assists / STATS.games).toFixed(1)} KDA</div>
+    </div>
+    <h2>By champion</h2>
+    ${champRows || '<p class="muted">No games found.</p>'}
+  `;
+}
 
 async function openRunes(){
   ed = null; show("runes");
