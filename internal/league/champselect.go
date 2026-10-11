@@ -173,11 +173,10 @@ func (s *Service) State() StateResult {
 	sel := &SelectState{
 		TimeLeft:       asInt(timer["adjustedTimeLeftInPhase"]) / 1000,
 		LockedChampion: asInt(myCell["championId"]),
-		// During the simultaneous "planning" phase at the very start of
-		// champ select, the LCU accepts a champion hover on a pick action
-		// that isn't active yet — that's the official client's own
-		// pre-pick preview. Outside this phase it rejects the same PATCH,
-		// so the mobile page only offers it while Planning is true.
+		// Informational only — the mobile page used to gate pre-pick
+		// hovering on this being true, but real sessions show pick intent
+		// broadcast successfully during plain BAN_PICK too, so that gate
+		// was dropped. Kept in case it's useful context later.
 		Planning: asString(timer["phase"]) == "PLANNING",
 		Allowed:  []int{},
 		Teams:    buildTeams(sess),

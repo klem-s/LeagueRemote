@@ -372,12 +372,13 @@ function renderBar(){
     : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
-  // Hovering before your action is active only works during the
-  // simultaneous "planning" phase at the very start of champ select, and
-  // only for picks — the LCU has no equivalent preview for bans.
-  const canPreview = st?.select?.planning && !isBan;
+  // Gating this on timer.phase === "PLANNING" (a previous attempt) was
+  // wrong: real sessions show teammates' championPickIntent populated
+  // during plain BAN_PICK, well before their own action is active, with
+  // no PLANNING phase involved at all. So just always allow it for picks —
+  // bans stay turn-only since there's no comparable evidence for those.
   $("hoverBtn").textContent = (a && !a.inProgress) ? "Preview" : "Hover";
-  $("hoverBtn").disabled = !a || !chosen || (!a.inProgress && !canPreview);
+  $("hoverBtn").disabled = !a || !chosen || (isBan && !a.inProgress);
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
 }
 

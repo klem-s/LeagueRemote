@@ -92,7 +92,7 @@ All `/api/*` routes require the `X-Pin` header.
 | GET | `/api/champions` | `{id, name}` list |
 | GET | `/api/runes` | pages, active page, trees and runes |
 | GET | `/api/runes/recommended` | recommended runes for the current champion |
-| POST | `/api/select` | `{actionId, championId, lock}`: hovers, then locks in if `lock`. Also used to pre-pick during the planning phase (see below) — the same endpoint, just allowed earlier |
+| POST | `/api/select` | `{actionId, championId, lock}`: hovers, then locks in if `lock`. Also used to pre-pick before your turn (see below) — the same endpoint, just allowed earlier |
 | POST | `/api/swaps/request`, `/accept`, `/decline`, `/cancel` | `{type, id}`: drive a champion/position/pick-order swap with a teammate (see below) |
 | POST | `/api/accept`, `/api/decline` | ready check |
 | POST | `/api/auto-accept` | `{enabled}` |
@@ -129,7 +129,7 @@ git push origin v1.0.0
 - During a ban, the allowed-champion list is computed server-side (everything except already-banned or locked-in champions), since `bannable-champion-ids` isn't reliable.
 - On some client versions, editing a page (`PUT`) fails: the page is then deleted and recreated.
 - Over `http` on Wi-Fi, the PIN travels in the clear on the local network. Don't expose the port directly to the Internet.
-- Pre-picking before your turn only works during the session's `timer.phase == "PLANNING"` window (confirmed), and never for bans (no such mechanism exists).
+- Pre-picking before your turn: an earlier version gated this on `timer.phase == "PLANNING"`, which turned out to be wrong — real sessions show teammates' `championPickIntent` set during plain `BAN_PICK`, no distinct planning phase involved. The gate was removed; the app now always attempts it for picks (never for bans, no evidence that works). Still not independently verified end-to-end against a live client — if the LCU rejects it, the toast's error text is the next lead.
 - Swaps come in three kinds, each a separate array in the session — `trades` (champion), `positionSwaps` (lane/role), `pickOrderSwaps` — all shaped `{id, cellId, state}` with `state` one of `AVAILABLE`/`SENT`/`RECEIVED`/`BUSY`/`INVALID`. This part is confirmed against a real session dump (`internal/league/champselect_test.go`'s `TestBuildTeamsSwapsRealSession`), not guessed. The *action* URLs (`.../trades/{id}/request`, `.../position-swaps/{id}/request`, `.../pick-order-swaps/{id}/request`, each with `/accept`, `/decline`, `/cancel`) follow the LCU's usual kebab-case convention and the `trades` ones are corroborated by several independent sources, but `position-swaps`/`pick-order-swaps` are an educated extrapolation, not yet exercised against a live client — if request/accept/decline/cancel misbehaves for those two, the LCU's actual error message (surfaced as a toast) is the fastest way to fix it.
 
 ## History
