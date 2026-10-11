@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#091428">
+<title>LoL Remote</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LoL Remote">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --abyss:#091428; --deep:#0f1e33; --line:#463714; --gold:#c8aa6e; --gold-hi:#f0e6d2;
+  --teal:#0ac8b9; --red:#c24b4b; --muted:#7b8a99;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;height:100%}
+body{background:var(--abyss);color:var(--gold-hi);font:15px/1.4 Inter,system-ui,sans-serif;
+  display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent}
+h1{font:400 22px Marcellus,Georgia,serif;color:var(--gold);margin:0;letter-spacing:.02em}
+h2{font:400 17px Marcellus,Georgia,serif;color:var(--gold);margin:18px 0 8px}
+header{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+#phase{font-size:13px;color:var(--muted)}
+.timer{font:400 34px Marcellus,Georgia,serif;color:var(--gold-hi);min-width:2ch;text-align:right}
+.timer.low{color:var(--red)}
+nav.tabs{display:flex;border-bottom:1px solid var(--line)}
+nav.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
+  padding:10px;font:600 14px Inter,sans-serif;cursor:pointer}
+nav.tabs button[aria-selected=true]{color:var(--gold-hi);border-bottom-color:var(--gold)}
+.pane{flex:1;overflow-y:auto;padding:12px 16px 16px}
+input[type=search],input[type=tel],.lbl input{width:100%;padding:12px 14px;border-radius:2px;border:1px solid var(--line);
+  background:var(--deep);color:var(--gold-hi);font:inherit;font-size:16px}
+input:focus{outline:2px solid var(--teal);outline-offset:1px}
+.muted{color:var(--muted)}
+
+/* équipes */
+.teams{display:grid;gap:10px;margin-bottom:14px}
+.sideLabel{font-size:12px;color:var(--muted);margin:0 0 4px}
+.side{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.slot{text-align:center;font-size:11px;color:var(--muted);min-width:0}
+.slot img,.slot .empty{width:100%;aspect-ratio:1;display:block;border:1px solid var(--line);background:var(--deep)}
+.slot img.intent{opacity:.4}
+.slot.me img,.slot.me .empty{border:2px solid var(--gold)}
+.enemy .slot img,.enemy .slot .empty{border-color:#5a2a2a}
+.slot span,.slot small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.slot small{color:var(--gold-hi);font-size:11px}
+.bans{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px;color:var(--muted);min-height:24px}
+.bans img{width:24px;height:24px;filter:grayscale(1);opacity:.75}
+.bans .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
+
+/* grille */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px;margin-top:12px}
+.champ{background:none;border:0;padding:0;color:var(--muted);font:12px Inter,sans-serif;text-align:center;cursor:pointer}
+.champ img{display:block;width:100%;aspect-ratio:1;border:2px solid var(--line);background:var(--deep)}
+.champ span{display:block;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.champ.sel img{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal)}
+.champ.sel span{color:var(--gold-hi)}
+.champ:disabled{opacity:.25}
+.champ:focus-visible{outline:2px solid var(--teal)}
+
+footer{border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;align-items:center;background:var(--deep)}
+.pick{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.pick img{width:44px;height:44px;border:1px solid var(--gold)}
+.pick small{display:block;color:var(--muted);font-size:12px}
+button.act{border:1px solid var(--gold);background:transparent;color:var(--gold-hi);padding:12px 16px;
+  font:600 15px Inter,sans-serif;border-radius:2px;cursor:pointer}
+button.act.primary{border-color:var(--teal);color:var(--teal)}
+button.act.ban{border-color:var(--red);color:#ff9b9b}
+button.act:disabled{opacity:.35}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+.center p{color:var(--muted);max-width:30ch;margin:0}
+.big{font-size:20px;padding:22px 40px}
+.toggle{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}
+.toggle input{width:20px;height:20px;accent-color:var(--teal)}
+
+/* runes */
+.page{display:flex;align-items:center;border:1px solid var(--line);background:var(--deep);margin-bottom:8px;width:100%}
+.page.active{border-color:var(--teal)}
+.pageMain{flex:1;display:flex;align-items:center;gap:10px;background:none;border:0;color:inherit;padding:10px;
+  text-align:left;font:inherit;min-width:0;cursor:pointer}
+.pageMain span{min-width:0}
+.pageMain b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.page small{display:block;color:var(--muted);font-size:12px}
+.page.active small{color:var(--teal)}
+img.ks{width:40px;height:40px;flex:none}
+img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
+.mini{background:none;border:1px solid var(--line);color:var(--gold);padding:8px 10px;font:600 13px Inter,sans-serif;
+  margin-right:8px;cursor:pointer}
+.rec em{margin-left:auto;font-style:normal;color:var(--teal);font-weight:600;padding-left:8px}
+.prow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0 2px}
+.prow button{background:none;border:0;padding:0;cursor:pointer;border-radius:50%}
+.prow img{display:block;width:44px;height:44px;border-radius:50%;filter:grayscale(1);opacity:.45;border:2px solid transparent}
+.prow.big img{width:56px;height:56px}
+.prow.small img{width:30px;height:30px}
+.prow button.on img{filter:none;opacity:1;border-color:var(--gold)}
+.prow button:focus-visible{outline:2px solid var(--teal)}
+.cap{text-align:center;font-size:12px;color:var(--gold-hi);margin:2px 0 0;min-height:1.4em}
+.lbl{display:block;color:var(--muted);font-size:13px}
+.lbl input{margin-top:4px}
+.hint{text-align:center;color:var(--muted);font-size:12px;margin:6px 0 0}
+.edActions{display:flex;gap:10px;position:sticky;bottom:-16px;background:var(--abyss);padding:12px 0 16px;margin-top:12px}
+.edActions button{flex:1}
+
+.toast{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));background:#3a1a1a;
+  border:1px solid var(--red);padding:10px 14px;color:#ffd6d6;display:none;z-index:9}
+.toast.ok{background:#0d2b2b;border-color:var(--teal);color:#c9fff9}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>LoL Remote</h1><div id="phase">…</div></div>
+  <div class="timer" id="timer"></div>
+</header>
+<nav class="tabs" id="tabs" hidden>
+  <button id="tabChamp" aria-selected="true">Champion</button>
+  <button id="tabRunes" aria-selected="false">Runes</button>
+</nav>
+
+<section class="center" id="login" hidden>
+  <p>Entre le code PIN affiché dans la console sur ton PC.</p>
+  <input type="tel" id="pin" inputmode="numeric" maxlength="8" placeholder="PIN" style="max-width:200px;text-align:center">
+  <button class="act primary" id="pinBtn">Se connecter</button>
+</section>
+
+<section class="center" id="idle" hidden>
+  <p id="idleMsg">En attente d'une sélection de champion.</p>
+  <label class="toggle"><input type="checkbox" id="auto"> Accepter les parties automatiquement</label>
+</section>
+
+<section class="center" id="ready" hidden>
+  <p>Partie trouvée</p>
+  <button class="act primary big" id="acceptBtn">Accepter</button>
+  <button class="act" id="declineBtn">Refuser</button>
+</section>
+
+<main class="pane" id="select" hidden>
+  <div class="teams" id="teams"></div>
+  <input type="search" id="search" placeholder="Rechercher un champion" autocomplete="off">
+  <div class="grid" id="grid"></div>
+</main>
+
+<section class="pane" id="runes" hidden>
+  <div id="recBox" hidden>
+    <h2 id="recTitle"></h2>
+    <div class="recs"></div>
+    <p class="hint">Remplace ta page active si elle est modifiable, sinon crée une nouvelle page.</p>
+  </div>
+  <h2>Tes pages</h2>
+  <div id="runeList"></div>
+  <button class="act" id="newPage" style="width:100%;margin-top:4px">Nouvelle page</button>
+</section>
+
+<section class="pane" id="editor" hidden>
+  <div id="edBody"></div>
+  <div class="edActions">
+    <button class="act" id="edCancel">Annuler</button>
+    <button class="act primary" id="edSave">Enregistrer et activer</button>
+  </div>
+</section>
+
+<footer id="bar" hidden>
+  <div class="pick" id="pickInfo"></div>
+  <button class="act" id="hoverBtn">Survoler</button>
+  <button class="act primary" id="lockBtn">Verrouiller</button>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let pin = ""; try { pin = localStorage.getItem("pin") || ""; } catch(e) {}
+let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
+let R = null, ed = null;
+
+const VIEWS = ["login","idle","ready","select","runes","editor"];
+const ROLES = {top:"Top", jungle:"Jungle", middle:"Mid", bottom:"ADC", utility:"Support"};
+const PHASES = {None:"Client ouvert", Lobby:"Dans le salon", Matchmaking:"Recherche de partie…",
+  ReadyCheck:"Partie trouvée", ChampSelect:"Sélection des champions", InProgress:"En jeu",
+  GameStart:"Chargement", WaitingForStats:"Fin de partie", EndOfGame:"Fin de partie", PreEndOfGame:"Fin de partie"};
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const asset = p => p ? "/asset?p=" + encodeURIComponent(p) : "";
+const img = (p, cls="") => p ? `<img class="${cls}" src="${asset(p)}" alt="">` : "";
+const currentView = () => VIEWS.find(v => !$(v).hidden);
+
+function show(view){
+  for (const v of VIEWS) $(v).hidden = v !== view;
+  $("bar").hidden = view !== "select";
+}
+function toast(msg, ok){
+  const t = $("toast"); t.textContent = msg; t.className = "toast" + (ok ? " ok" : "");
+  t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 3500);
+}
+async function api(path, body){
+  const r = await fetch(path, {method: body ? "POST" : "GET",
+    headers: {"X-Pin": pin, "Content-Type": "application/json"}, body: body ? JSON.stringify(body) : undefined});
+  if (r.status === 401) { show("login"); throw new Error("pin"); }
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || "Erreur");
+  return data;
+}
+const fail = e => { if (e.message !== "pin") toast(e.message); };
+
+async function loadChamps(){
+  if (champs.length) return;
+  champs = await api("/api/champions");
+  champById = Object.fromEntries(champs.map(c => [c.id, c]));
+}
+
+/* ------------------------------------------------ onglets */
+function setTab(t){
+  tab = t;
+  $("tabChamp").setAttribute("aria-selected", t === "champ");
+  $("tabRunes").setAttribute("aria-selected", t === "runes");
+  if (t === "runes") openRunes(); else { lastKey = teamsKey = ""; renderChamp(); }
+}
+$("tabChamp").onclick = () => setTab("champ");
+$("tabRunes").onclick = () => setTab("runes");
+
+/* ------------------------------------------------ boucle principale */
+async function tick(){
+  if (!pin) { show("login"); return; }
+  try { st = await api("/api/state"); } catch(e) { return; }
+  $("auto").checked = st.autoAccept;
+  const t = $("timer"); t.textContent = ""; t.classList.remove("low");
+  if (!st.connected) {
+    $("phase").textContent = "Client League fermé"; $("tabs").hidden = true;
+    $("idleMsg").textContent = "Lance League of Legends sur ton PC."; show("idle"); return;
+  }
+  $("tabs").hidden = false;
+  $("phase").textContent = PHASES[st.phase] || st.phase;
+  if (st.select) { t.textContent = st.select.timeLeft; t.classList.toggle("low", st.select.timeLeft <= 10); }
+  if (st.phase === "ReadyCheck" && !st.autoAccept) { show("ready"); return; }
+  if (tab === "champ") renderChamp();
+  else if (["ready","idle"].includes(currentView())) ed ? show("editor") : openRunes();
+}
+
+/* ------------------------------------------------ sélection */
+async function renderChamp(){
+  if (!st || st.phase !== "ChampSelect" || !st.select) {
+    $("idleMsg").textContent = "En attente d'une sélection de champion.";
+    chosen = 0; show("idle"); return;
+  }
+  try { await loadChamps(); } catch(e) { return; }
+  if (tab !== "champ") return;
+  if (!st.select.action && st.select.lockedChampion) $("phase").textContent = "Champion verrouillé";
+  show("select"); renderTeams(); renderGrid(); renderBar();
+}
+
+function slot(c){
+  const id = c.champion || c.intent;
+  const label = c.me ? "Toi" : (c.name || ROLES[c.position] || "");
+  const pic = id ? `<img src="/icon/${id}" alt="" class="${c.locked ? "" : "intent"}">` : `<div class="empty"></div>`;
+  return `<div class="slot${c.me ? " me" : ""}">${pic}<span>${esc(label)}</span><small>${esc(champById[id]?.name || "")}</small></div>`;
+}
+function renderTeams(){
+  const T = st.select.teams; if (!T) return;
+  const key = JSON.stringify(T); if (key === teamsKey) return; teamsKey = key;
+  const ban = id => `<img src="/icon/${id}" alt="${esc(champById[id]?.name || "")}">`;
+  $("teams").innerHTML =
+    `<div><p class="sideLabel">Ton équipe</p><div class="side">${T.allies.map(slot).join("")}</div></div>` +
+    (T.enemies.length ? `<div class="enemy"><p class="sideLabel">Adversaires</p><div class="side">${T.enemies.map(slot).join("")}</div></div>` : "") +
+    ((T.allyBans.length || T.enemyBans.length)
+      ? `<div class="bans">Bans ${T.allyBans.map(ban).join("")}<span class="sep"></span>${T.enemyBans.map(ban).join("")}</div>` : "");
+}
+
+function renderGrid(){
+  const q = $("search").value.trim().toLowerCase();
+  const allowed = new Set(st?.select?.allowed || []);
+  const key = q + "|" + [...allowed].join(",") + "|" + chosen;
+  if (key === lastKey) return; lastKey = key;
+  const g = $("grid"); g.innerHTML = "";
+  for (const c of champs) {
+    if (q && !c.name.toLowerCase().includes(q)) continue;
+    const b = document.createElement("button");
+    b.className = "champ" + (c.id === chosen ? " sel" : "");
+    b.disabled = allowed.size > 0 && !allowed.has(c.id);
+    b.innerHTML = `<img loading="lazy" alt="" src="/icon/${c.id}"><span>${esc(c.name)}</span>`;
+    b.onclick = () => { chosen = c.id; renderGrid(); renderBar(); };
+    g.appendChild(b);
+  }
+}
+
+function renderBar(){
+  const a = st?.select?.action;
+  const c = champById[chosen];
+  const isBan = a?.type === "ban";
+  $("pickInfo").innerHTML = c
+    ? `<img src="/icon/${c.id}" alt=""><div><b>${esc(c.name)}</b><small>${isBan ? "À bannir" : "À jouer"}</small></div>`
+    : `<div><small>${a ? (isBan ? "Choisis un champion à bannir" : "Choisis ton champion") : "Rien à faire pour l'instant"}</small></div>`;
+  $("lockBtn").textContent = isBan ? "Bannir" : "Verrouiller";
+  $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
+  $("hoverBtn").disabled = !a || !chosen;
+  $("lockBtn").disabled = !a || !chosen || !a.inProgress;
+}
+
+async function send(lock){
+  const a = st?.select?.action; if (!a || !chosen) return;
+  try { await api("/api/select", {actionId: a.id, championId: chosen, lock}); tick(); } catch(e) { fail(e); }
+}
+$("hoverBtn").onclick = () => send(false);
+$("lockBtn").onclick = () => send(true);
+$("search").oninput = renderGrid;
+
+/* ------------------------------------------------ runes : liste */
+const styleById = id => R?.styles.find(s => s.id === id);
+const perk = id => R?.perks[id];
+
+async function openRunes(){
+  ed = null; show("runes");
+  if (!R) $("runeList").innerHTML = `<p class="muted">Chargement…</p>`;
+  try { R = await api("/api/runes"); } catch(e) {
+    if (e.message !== "pin") $("runeList").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return;
+  }
+  renderRunes(); loadRecommended();
+}
+
+function renderRunes(){
+  $("runeList").innerHTML = R.pages.map(p => {
+    const active = p.id === R.currentId;
+    const status = active ? "Page active" : (p.editable ? "Toucher pour activer" : "Page par défaut");
+    return `<div class="page${active ? " active" : ""}">
+      <button class="pageMain" data-act="use" data-id="${p.id}">${img(perk(p.perks[0])?.icon, "ks")}${img(styleById(p.sub)?.icon, "sub")}
+        <span><b>${esc(p.name)}</b><small>${status}</small></span></button>
+      ${p.editable ? `<button class="mini" data-act="edit" data-id="${p.id}">Modifier</button>
+      <button class="mini" data-act="del" data-id="${p.id}" aria-label="Supprimer ${esc(p.name)}">✕</button>` : ""}
+    </div>`;
+  }).join("") || `<p class="muted">Aucune page.</p>`;
+}
+
+$("runeList").onclick = async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const id = +b.dataset.id, page = R.pages.find(p => p.id === id);
+  try {
+    if (b.dataset.act === "use") { await api("/api/runes/activate", {id}); toast(`« ${page.name} » activée`, true); openRunes(); }
+    if (b.dataset.act === "edit") openEditor(page);
+    if (b.dataset.act === "del" && confirm(`Supprimer « ${page.name} » ?`)) { await api("/api/runes/delete", {id}); openRunes(); }
+  } catch(e) { fail(e); }
+};
+$("newPage").onclick = () => openEditor(null);
+
+async function loadRecommended(){
+  const box = $("recBox"); box.hidden = true;
+  if (st?.phase !== "ChampSelect") return;
+  try {
+    await loadChamps();
+    const r = await api("/api/runes/recommended");
+    if (!r.pages.length || tab !== "runes") return;
+    const name = champById[r.champion]?.name || "ton champion";
+    $("recTitle").textContent = "Recommandées pour " + name;
+    box._recs = r.pages; box._name = name;
+    box.querySelector(".recs").innerHTML = r.pages.map((p, i) => {
+      const role = ROLES[(p.position || "").toLowerCase()];
+      return `<button class="page pageMain rec" data-i="${i}">${img(perk(p.perks[0])?.icon, "ks")}${img(styleById(p.sub)?.icon, "sub")}
+        <span><b>${esc(perk(p.perks[0])?.name || "")}</b><small>${esc(styleById(p.primary)?.name || "")} + ${esc(styleById(p.sub)?.name || "")}${role ? ", " + role : ""}</small></span>
+        <em>Appliquer</em></button>`;
+    }).join("");
+    box.hidden = false;
+  } catch(e) {}
+}
+$("recBox").onclick = async e => {
+  const b = e.target.closest("button.rec"); if (!b) return;
+  const box = $("recBox"), p = box._recs[+b.dataset.i];
+  try {
+    const r = await api("/api/runes/apply", {name: box._name, primaryStyleId: p.primary, subStyleId: p.sub, selectedPerkIds: p.perks});
+    toast(`Runes appliquées sur « ${r.page} »`, true); openRunes();
+  } catch(e) { fail(e); }
+};
+
+/* ------------------------------------------------ runes : éditeur */
+function openEditor(page){
+  if (page) {
+    const sub = styleById(page.sub);
+    const secs = page.perks.slice(4, 6).map(id => ({row: sub ? sub.rows.findIndex(r => r.includes(id)) : -1, perk: id}))
+      .filter(x => x.row >= 0);
+    ed = {id: page.id, name: page.name, primary: page.primary, sub: page.sub, keystone: page.perks[0],
+          prim: page.perks.slice(1, 4), secs, shards: page.perks.slice(6, 9)};
+  } else {
+    ed = {id: null, name: "Ma page", primary: 0, sub: 0, keystone: 0, prim: [0,0,0], secs: [], shards: [0,0,0]};
+  }
+  show("editor"); renderEd();
+}
+
+function styleRow(ids, sel, kind){
+  return `<div class="prow">${ids.map(id => { const s = styleById(id); return s
+    ? `<button data-kind="${kind}" data-id="${id}" class="${id === sel ? "on" : ""}" aria-label="${esc(s.name)}">${img(s.icon)}</button>` : ""; }).join("")}</div>`
+    + `<p class="cap">${esc(styleById(sel)?.name || "")}</p>`;
+}
+function perkRow(ids, sel, kind, row, size=""){
+  return `<div class="prow ${size}">${ids.map(id =>
+    `<button data-kind="${kind}" data-id="${id}" data-row="${row}" class="${id === sel ? "on" : ""}" aria-label="${esc(perk(id)?.name || "")}">${img(perk(id)?.icon)}</button>`).join("")}</div>`
+    + `<p class="cap">${esc(perk(sel)?.name || "")}</p>`;
+}
+const valid = () => ed.primary && ed.sub && ed.keystone && ed.prim.every(Boolean) && ed.secs.length === 2 && ed.shards.every(Boolean);
+
+function renderEd(){
+  const P = styleById(ed.primary), S = styleById(ed.sub);
+  let h = `<label class="lbl">Nom de la page<input id="edName" value="${esc(ed.name)}" maxlength="40"></label>`;
+  h += `<h2>Arbre principal</h2>` + styleRow(R.styles.map(s => s.id), ed.primary, "primary");
+  if (P) {
+    h += perkRow(P.keystones, ed.keystone, "ks", 0, "big");
+    P.rows.forEach((row, i) => h += perkRow(row, ed.prim[i], "prim", i));
+    const subs = (P.allowedSub?.length ? P.allowedSub : R.styles.map(s => s.id)).filter(id => id !== P.id);
+    h += `<h2>Arbre secondaire</h2>` + styleRow(subs, ed.sub, "sub");
+    if (S) {
+      S.rows.forEach((row, i) => { const s = ed.secs.find(x => x.row === i); h += perkRow(row, s ? s.perk : 0, "sec", i); });
+      h += `<p class="hint">Choisis 2 runes sur 2 lignes différentes.</p>`;
+    }
+    h += `<h2>Fragments</h2>`;
+    P.shards.forEach((row, i) => h += perkRow(row, ed.shards[i], "shard", i, "small"));
+  }
+  $("edBody").innerHTML = h;
+  $("edSave").disabled = !valid();
+}
+
+$("edBody").onclick = e => {
+  const b = e.target.closest("button[data-kind]"); if (!b) return;
+  const k = b.dataset.kind, id = +b.dataset.id, row = +b.dataset.row;
+  ed.name = $("edName").value;
+  if (k === "primary" && ed.primary !== id) {
+    ed.primary = id; ed.keystone = 0; ed.prim = [0,0,0];
+    if (ed.sub === id) { ed.sub = 0; ed.secs = []; }
+  }
+  if (k === "sub" && ed.sub !== id) { ed.sub = id; ed.secs = []; }
+  if (k === "ks") ed.keystone = id;
+  if (k === "prim") ed.prim[row] = id;
+  if (k === "shard") ed.shards[row] = id;
+  if (k === "sec") {
+    const ex = ed.secs.find(x => x.row === row);
+    if (ex) ex.perk = id; else { ed.secs.push({row, perk: id}); if (ed.secs.length > 2) ed.secs.shift(); }
+  }
+  renderEd();
+};
+$("edCancel").onclick = () => openRunes();
+$("edSave").onclick = async () => {
+  ed.name = $("edName").value.trim() || "Ma page";
+  const secs = [...ed.secs].sort((a, b) => a.row - b.row).map(x => x.perk);
+  try {
+    await api("/api/runes/save", {id: ed.id, name: ed.name, primaryStyleId: ed.primary, subStyleId: ed.sub,
+      selectedPerkIds: [ed.keystone, ...ed.prim, ...secs, ...ed.shards]});
+    toast(`« ${ed.name} » enregistrée et activée`, true); openRunes();
+  } catch(e) { fail(e); }
+};
+
+/* ------------------------------------------------ divers */
+$("acceptBtn").onclick = () => api("/api/accept", {}).then(tick).catch(fail);
+$("declineBtn").onclick = () => api("/api/decline", {}).then(tick).catch(fail);
+$("auto").onchange = e => api("/api/auto-accept", {enabled: e.target.checked}).catch(fail);
+$("pinBtn").onclick = () => { pin = $("pin").value.trim(); try { localStorage.setItem("pin", pin); } catch(e) {} tick(); };
+$("pin").onkeydown = e => { if (e.key === "Enter") $("pinBtn").click(); };
+
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>
