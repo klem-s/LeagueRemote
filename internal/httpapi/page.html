@@ -361,12 +361,13 @@ function renderGrid(){
     b.innerHTML = `<img loading="lazy" alt="" src="/icon/${c.id}"><span>${esc(c.name)}</span>`;
     b.onclick = () => {
       chosen = c.id; renderGrid(); renderBar();
-      // Hovering targets the player's own pick action specifically
-      // (upcomingPick), not whatever's currently active (action) — while a
-      // ban is in progress, action IS that ban, and PATCHing the clicked
-      // champion onto it would set the ban target, not a pick preview.
-      // This was the real bug behind "pre-pick doesn't work during bans".
-      send(false, st?.select?.upcomingPick || st?.select?.action);
+      // While something of the player's own is actively in progress (their
+      // ban or pick turn), hover THAT — a ban turn must hover the ban, not
+      // silently overwrite a previously-set pick preview. upcomingPick only
+      // takes over when nothing is currently active, which is the genuine
+      // pre-pick case.
+      const a = st?.select?.action;
+      send(false, a?.inProgress ? a : (st?.select?.upcomingPick || a));
     };
     g.appendChild(b);
   }
