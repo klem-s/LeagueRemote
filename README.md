@@ -44,7 +44,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 **Match and champ select**
 - "Match found" screen with Accept/Decline, plus an auto-accept option.
 - Champion grid with search. Unplayable or already-taken champions are greyed out.
-- Hover or lock in a pick. Ban phase handled (Ban button).
+- Hover or lock in a pick. Ban phase handled (Ban button). Preview a champion before your turn is active, broadcast as intent to your team.
 - Phase timer, turns red under 10 seconds.
 - Draft overview: ally picks and hovers (hover shown translucent), enemy picks, both teams' bans, roles, and a highlight on whoever is currently picking. Names only show when the client provides them (Riot hides them in ranked).
 
@@ -92,6 +92,7 @@ All `/api/*` routes require the `X-Pin` header.
 | GET | `/api/runes` | pages, active page, trees and runes |
 | GET | `/api/runes/recommended` | recommended runes for the current champion |
 | POST | `/api/select` | `{actionId, championId, lock}`: hovers, then locks in if `lock` |
+| POST | `/api/preselect` | `{championId}`: broadcasts intent before the player's action is active (can't be done via `/api/select` — the LCU rejects a hover on an action that isn't the current one) |
 | POST | `/api/accept`, `/api/decline` | ready check |
 | POST | `/api/auto-accept` | `{enabled}` |
 | POST | `/api/runes/activate`, `/api/runes/delete` | `{id}` |

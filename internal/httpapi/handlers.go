@@ -75,6 +75,13 @@ func (s *Server) handleAPIPost(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, 200, map[string]interface{}{"ok": true})
 
+	case "/api/preselect":
+		if err := s.svc.Preselect(asInt(body["championId"])); err != nil {
+			s.writeAPIErr(w, err)
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{"ok": true})
+
 	case "/api/accept":
 		if err := s.svc.Accept(); err != nil {
 			s.writeAPIErr(w, err)

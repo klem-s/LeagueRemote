@@ -199,6 +199,16 @@ func (s *Service) Select(actionID, championID int, lock bool) error {
 	return nil
 }
 
+// Preselect broadcasts an intended champion to allies before the local
+// player's actual pick action is active (the client's own "planning phase"
+// preview). PATCHing a not-yet-active action via Select is rejected by the
+// LCU, so this goes through my-selection instead, the same endpoint the
+// official client uses for that preview.
+func (s *Service) Preselect(championID int) error {
+	_, err := s.client.Patch("/lol-champ-select/v1/session/my-selection", map[string]interface{}{"championId": championID})
+	return err
+}
+
 func actionPathFor(id int) string {
 	return "/lol-champ-select/v1/session/actions/" + strconv.Itoa(id)
 }

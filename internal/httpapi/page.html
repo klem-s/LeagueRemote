@@ -304,13 +304,20 @@ function renderBar(){
     : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
-  $("hoverBtn").disabled = !a || !chosen;
+  // Bans have no preview mechanism — only an actual pick can be broadcast
+  // as an "intent" before it's your turn.
+  $("hoverBtn").textContent = (a && !a.inProgress) ? "Preview" : "Hover";
+  $("hoverBtn").disabled = !a || !chosen || (isBan && !a.inProgress);
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
 }
 
 async function send(lock){
   const a = st?.select?.action; if (!a || !chosen) return;
-  try { await api("/api/select", {actionId: a.id, championId: chosen, lock}); tick(); } catch(e) { fail(e); }
+  try {
+    if (!lock && !a.inProgress) await api("/api/preselect", {championId: chosen});
+    else await api("/api/select", {actionId: a.id, championId: chosen, lock});
+    tick();
+  } catch(e) { fail(e); }
 }
 $("hoverBtn").onclick = () => send(false);
 $("lockBtn").onclick = () => send(true);
