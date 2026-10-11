@@ -73,6 +73,12 @@ input:focus{outline:2px solid var(--teal);outline-offset:1px}
 .swapMenu button:last-child{border-bottom:0}
 .swapMenu button:active{background:var(--line)}
 .swapMenu button.decline{color:#ff9b9b}
+.spellRow{display:flex;gap:10px;justify-content:center;margin:2px 0 10px}
+.spellSlot{display:flex;align-items:center;gap:8px;background:var(--deep);border:1px solid var(--line);
+  border-radius:4px;padding:6px 10px;cursor:pointer;color:var(--gold-hi);font:13px Inter,sans-serif}
+.spellSlot.sel{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.spellSlot img{width:28px;height:28px;border-radius:3px}
+.spellSlot .ph{width:28px;height:28px;border-radius:3px;background:var(--abyss);border:1px dashed var(--line)}
 .bans{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px;color:var(--muted);min-height:24px}
 .bans img{width:24px;height:24px;filter:grayscale(1);opacity:.75}
 .bans .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
@@ -167,6 +173,8 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 
 <main class="pane" id="select" hidden>
   <div class="teams" id="teams"></div>
+  <div class="spellRow" id="spellRow"></div>
+  <div class="grid" id="spellGrid" hidden></div>
   <button class="act" id="previewPickBtn" hidden>Preview as my pick</button>
   <input type="search" id="search" placeholder="Search for a champion" autocomplete="off">
   <div class="grid" id="grid"></div>
@@ -211,6 +219,7 @@ if (qsPin) {
   history.replaceState(null, "", location.pathname);
 }
 let champs = [], champById = {}, chosen = 0, st = null, lastKey = "", teamsKey = "", tab = "champ";
+let spells = [], spellById = {};
 let autoFilledFor = null; // action id already carried a preview into `chosen` for
 let R = null, ed = null;
 
@@ -253,6 +262,12 @@ async function loadChamps(){
   if (champs.length) return;
   champs = await api("/api/champions");
   champById = Object.fromEntries(champs.map(c => [c.id, c]));
+}
+
+async function loadSpells(){
+  if (spells.length) return;
+  spells = await api("/api/spells");
+  spellById = Object.fromEntries(spells.map(s => [s.id, s]));
 }
 
 function setTab(t){
@@ -304,7 +319,7 @@ async function renderChamp(){
     $("idleMsg").textContent = "Waiting for champ select.";
     chosen = 0; autoFilledFor = null; show("idle"); return;
   }
-  try { await loadChamps(); } catch(e) { return; }
+  try { await loadChamps(); await loadSpells(); } catch(e) { return; }
   if (tab !== "champ") return;
   const a = st.select.action;
   // Once the player's actual pick turn goes active, carry over whatever
@@ -317,8 +332,49 @@ async function renderChamp(){
     autoFilledFor = a.id;
   }
   if (!st.select.action && st.select.lockedChampion) $("phase").textContent = "Champion locked in";
-  show("select"); renderTeams(); renderGrid(); renderBar();
+  show("select"); renderTeams(); renderSpellRow(); renderGrid(); renderBar();
 }
+
+let pickingSpellSlot = null; // 1, 2, or null when the spell grid is closed
+
+function renderSpellRow(){
+  const s1 = st.select.spell1, s2 = st.select.spell2;
+  const chip = (id, slot) => {
+    const sp = spellById[id];
+    const pic = sp ? `<img src="/spellicon/${id}" alt="">` : `<div class="ph"></div>`;
+    return `<button class="spellSlot${pickingSpellSlot === slot ? " sel" : ""}" data-slot="${slot}">${pic}<span>${esc(sp?.name || (slot === 1 ? "D" : "F"))}</span></button>`;
+  };
+  $("spellRow").innerHTML = chip(s1, 1) + chip(s2, 2);
+  renderSpellGrid();
+}
+
+function renderSpellGrid(){
+  const g = $("spellGrid");
+  if (!pickingSpellSlot) { g.hidden = true; g.innerHTML = ""; return; }
+  g.hidden = false;
+  const current = pickingSpellSlot === 1 ? st.select.spell1 : st.select.spell2;
+  const other = pickingSpellSlot === 1 ? st.select.spell2 : st.select.spell1;
+  g.innerHTML = spells.map(sp => `
+    <button class="champ${sp.id === current ? " sel" : ""}" data-id="${sp.id}" ${sp.id === other ? "disabled" : ""}>
+      <img src="/spellicon/${sp.id}" alt=""><span>${esc(sp.name)}</span>
+    </button>`).join("");
+}
+
+$("spellRow").onclick = e => {
+  const b = e.target.closest(".spellSlot"); if (!b) return;
+  const slot = +b.dataset.slot;
+  pickingSpellSlot = pickingSpellSlot === slot ? null : slot;
+  renderSpellRow();
+};
+
+$("spellGrid").onclick = async e => {
+  const b = e.target.closest("button[data-id]"); if (!b || b.disabled) return;
+  const id = +b.dataset.id, slot = pickingSpellSlot;
+  const spell1 = slot === 1 ? id : st.select.spell1;
+  const spell2 = slot === 2 ? id : st.select.spell2;
+  pickingSpellSlot = null;
+  try { await api("/api/spells", {spell1, spell2}); tick(); } catch(e) { fail(e); }
+};
 
 const SWAP_LABEL = {champion: "Champion", position: "Position", pickOrder: "Pick order"};
 let notifiedSwaps = new Set();

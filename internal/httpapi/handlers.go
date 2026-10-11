@@ -20,6 +20,13 @@ func (s *Server) handleAPIGet(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, 200, champs)
+	case "/api/spells":
+		spells, err := s.svc.SummonerSpells()
+		if err != nil {
+			writeJSON(w, 503, errJSON(err))
+			return
+		}
+		writeJSON(w, 200, spells)
 	case "/api/runes":
 		data, err := s.svc.Runes()
 		if err != nil {
@@ -75,6 +82,13 @@ func (s *Server) handleAPIPost(w http.ResponseWriter, r *http.Request) {
 	case "/api/select":
 		err := s.svc.Select(asInt(body["actionId"]), asInt(body["championId"]), asBool(body["lock"]))
 		if err != nil {
+			s.writeAPIErr(w, err)
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{"ok": true})
+
+	case "/api/spells":
+		if err := s.svc.SetSpells(asInt(body["spell1"]), asInt(body["spell2"])); err != nil {
 			s.writeAPIErr(w, err)
 			return
 		}

@@ -2,18 +2,27 @@ package league
 
 import "testing"
 
+type patchCall struct {
+	path string
+	body interface{}
+}
+
 type fakeClient struct {
 	responses    map[string]interface{}
 	liveGameData interface{}
+	patches      []patchCall
 }
 
-func (f *fakeClient) Get(path string) (interface{}, error)           { return f.responses[path], nil }
-func (f *fakeClient) Post(string, interface{}) (interface{}, error)  { return nil, nil }
-func (f *fakeClient) Put(string, interface{}) (interface{}, error)   { return nil, nil }
-func (f *fakeClient) Patch(string, interface{}) (interface{}, error) { return nil, nil }
-func (f *fakeClient) Delete(string) (interface{}, error)             { return nil, nil }
-func (f *fakeClient) Raw(string) ([]byte, error)                     { return nil, nil }
-func (f *fakeClient) LiveGameData() (interface{}, error)             { return f.liveGameData, nil }
+func (f *fakeClient) Get(path string) (interface{}, error)          { return f.responses[path], nil }
+func (f *fakeClient) Post(string, interface{}) (interface{}, error) { return nil, nil }
+func (f *fakeClient) Put(string, interface{}) (interface{}, error)  { return nil, nil }
+func (f *fakeClient) Patch(path string, body interface{}) (interface{}, error) {
+	f.patches = append(f.patches, patchCall{path, body})
+	return nil, nil
+}
+func (f *fakeClient) Delete(string) (interface{}, error) { return nil, nil }
+func (f *fakeClient) Raw(string) ([]byte, error)         { return nil, nil }
+func (f *fakeClient) LiveGameData() (interface{}, error) { return f.liveGameData, nil }
 
 // TestStateInProgressReportsLiveStats checks that once the game itself is
 // running, State() reports the local player's live line from the Live

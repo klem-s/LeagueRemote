@@ -109,6 +109,15 @@ func (s *Server) Handler() http.Handler {
 		s.serveAsset(w, "/lol-game-data/assets/v1/champion-icons/"+cid+".png")
 	})
 
+	mux.HandleFunc("/spellicon/", func(w http.ResponseWriter, r *http.Request) {
+		sid := strings.TrimPrefix(r.URL.Path, "/spellicon/")
+		if _, err := strconv.Atoi(sid); err != nil {
+			writeBytes(w, 404, "text/plain", []byte{}, false)
+			return
+		}
+		s.serveAsset(w, "/lol-game-data/assets/v1/summoner-spell-icons/"+sid+".png")
+	})
+
 	mux.HandleFunc("/asset", func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Query().Get("p")
 		if !strings.HasPrefix(p, "/lol-game-data/assets/") || strings.Contains(p, "..") {
