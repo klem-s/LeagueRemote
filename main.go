@@ -1,7 +1,7 @@
 // LoL Remote - choisis ton champion, tes runes et suis la draft depuis ton téléphone.
 //
-// Usage : lol-remote.exe
-// Puis ouvre l'adresse affichée sur ton téléphone (même Wi-Fi que le PC).
+// Lance l'exécutable : une icône apparaît dans la zone de notification avec
+// l'adresse et le code PIN à saisir sur le téléphone (même Wi-Fi que le PC).
 // Un seul exécutable, aucune installation.
 //
 // This is the composition root: it is the only place that wires the
@@ -21,9 +21,12 @@ import (
 	"lolremote/internal/httpapi"
 	"lolremote/internal/lcu"
 	"lolremote/internal/league"
+	"lolremote/internal/trayui"
 )
 
-const port = 8080
+// Port par défaut : moins commun que 8080, pour limiter les conflits
+// avec d'autres outils locaux. Choisi arbitrairement, sans signification.
+const defaultPort = 53217
 
 func localIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -40,20 +43,29 @@ func main() {
 		pin = strconv.Itoa(1000 + rand.Intn(9000))
 	}
 
+	// Port fixe par défaut (moins commun que 8080, donc moins souvent pris
+	// par autre chose) ; si déjà occupé, le système en choisit un libre.
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", defaultPort))
+	if err != nil {
+		listener, err = net.Listen("tcp", "0.0.0.0:0")
+		if err != nil {
+			trayui.ReportFatal(fmt.Sprintf("Impossible d'ouvrir un port : %v", err))
+			os.Exit(1)
+		}
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	url := fmt.Sprintf("http://%s:%d", localIP(), port)
+
 	svc := league.NewService(lcu.New())
 	go svc.Watch()
 
-	fmt.Println()
-	fmt.Println("  LoL Remote lancé")
-	fmt.Printf("  Sur ton téléphone : http://%s:%d\n", localIP(), port)
-	fmt.Printf("  Code PIN          : %s\n\n", pin)
-	fmt.Println("  (Ctrl+C pour arrêter)")
-	fmt.Println()
-
 	server := httpapi.NewServer(svc, pin)
-	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	if err := http.ListenAndServe(addr, server.Handler()); err != nil {
-		fmt.Println("Erreur serveur:", err)
-		os.Exit(1)
-	}
+	go func() {
+		if err := http.Serve(listener, server.Handler()); err != nil {
+			trayui.ReportFatal(fmt.Sprintf("Erreur serveur : %v", err))
+			os.Exit(1)
+		}
+	}()
+
+	trayui.Run(pin, url) // bloque : boucle de l'icône dans la zone de notification
 }

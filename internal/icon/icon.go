@@ -4,6 +4,7 @@ package icon
 
 import (
 	"bytes"
+	"encoding/binary"
 	"image"
 	"image/color"
 	"image/png"
@@ -53,6 +54,34 @@ func PNG(size int) []byte {
 	b := buf.Bytes()
 	cache[size] = b
 	return b
+}
+
+// ICO wraps PNG(size) in a minimal single-image .ico container, for the
+// Windows tray icon. Windows has accepted PNG-compressed icon frames since
+// Vista, so no separate BMP/DIB encoding is needed.
+func ICO(size int) []byte {
+	png := PNG(size)
+	dim := byte(size)
+	if size >= 256 {
+		dim = 0 // 0 means 256 in the ICO format
+	}
+
+	var buf bytes.Buffer
+	// ICONDIR
+	binary.Write(&buf, binary.LittleEndian, uint16(0)) // reserved
+	binary.Write(&buf, binary.LittleEndian, uint16(1)) // type: icon
+	binary.Write(&buf, binary.LittleEndian, uint16(1)) // image count
+	// ICONDIRENTRY
+	buf.WriteByte(dim)                                        // width
+	buf.WriteByte(dim)                                        // height
+	buf.WriteByte(0)                                          // color count
+	buf.WriteByte(0)                                          // reserved
+	binary.Write(&buf, binary.LittleEndian, uint16(1))        // color planes
+	binary.Write(&buf, binary.LittleEndian, uint16(32))       // bits per pixel
+	binary.Write(&buf, binary.LittleEndian, uint32(len(png))) // image size
+	binary.Write(&buf, binary.LittleEndian, uint32(22))       // offset: 6 (ICONDIR) + 16 (ICONDIRENTRY)
+	buf.Write(png)
+	return buf.Bytes()
 }
 
 func Manifest() map[string]interface{} {

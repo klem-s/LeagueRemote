@@ -6,14 +6,14 @@ Réécriture en Go du script Python original (voir « Historique » plus bas) : 
 
 ## Installation
 
-Télécharger `lol-remote.exe` depuis la page [Releases](../../releases) et le lancer (double-clic, ou depuis un terminal pour garder la console visible).
+Télécharger `lol-remote.exe` depuis la page [Releases](../../releases) et le lancer (double-clic). Aucune console ne s'ouvre : une icône apparaît dans la zone de notification, avec une fenêtre qui affiche l'adresse et le code PIN à saisir sur le téléphone.
 
 Autoriser l'exécutable dans le pare-feu Windows (réseaux privés) au premier lancement.
 
 ## Architecture
 
 ```
-Téléphone (PWA)  ──HTTP/HTTPS──▶  lol-remote.exe (PC, port 8080)  ──HTTPS local──▶  Client League (LCU API)
+Téléphone (PWA)  ──HTTP/HTTPS──▶  lol-remote.exe (PC, port 53217)  ──HTTPS local──▶  Client League (LCU API)
 ```
 
 Le client League expose une API REST non officielle, la **LCU API**, qui n'écoute que sur `127.0.0.1`. Le téléphone ne peut donc pas lui parler directement : `lol-remote.exe` sert de relais.
@@ -31,11 +31,13 @@ Le client League expose une API REST non officielle, la **LCU API**, qui n'écou
 lol-remote.exe
 ```
 
-La console affiche l'adresse locale et le code PIN. Le PIN est aléatoire à chaque lancement, sauf si la variable d'environnement `LOL_REMOTE_PIN` est définie.
+Une fenêtre affiche l'adresse et le code PIN au démarrage ; l'icône dans la zone de notification permet de les revoir à tout moment, d'ouvrir un code QR vers l'adresse, ou de quitter.
+
+Le PIN est aléatoire à chaque lancement, sauf si la variable d'environnement `LOL_REMOTE_PIN` est définie. Le port par défaut est `53217` ; s'il est déjà pris, un port libre est choisi automatiquement.
 
 ### Accès hors du Wi-Fi (optionnel)
 
-Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 8080` rend l'app accessible en `https://<pc>.<tailnet>.ts.net`, y compris en 4G.
+Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 53217` rend l'app accessible en `https://<pc>.<tailnet>.ts.net`, y compris en 4G (adapter le port si l'app en a choisi un autre).
 
 ## Fonctionnalités
 
@@ -54,6 +56,9 @@ Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 8080` rend l'a
 **Web app**
 - Manifest et icône générés en PNG au démarrage : l'app s'ajoute à l'écran d'accueil et s'ouvre en plein écran.
 
+**Sur le PC**
+- Pas de console : une icône dans la zone de notification, menu « Adresse et code PIN », « Code QR » (ouvre un PNG du QR dans la visionneuse par défaut) et « Quitter ».
+
 ## Structure du projet
 
 Architecture en couches (clean architecture) :
@@ -62,9 +67,10 @@ Architecture en couches (clean architecture) :
 |---|---|
 | `internal/league` | Cas d'usage : `Service`, modèles de données, interface `Client` (le port), erreurs métier. Ne dépend de rien d'autre dans ce projet. |
 | `internal/lcu` | Adaptateur : implémente `league.Client` par-dessus l'API LCU réelle (HTTPS, découverte des identifiants). |
-| `internal/icon` | Génération de l'icône PNG et du manifest, sans dépendance. |
+| `internal/icon` | Génération de l'icône PNG/ICO et du manifest, sans dépendance. |
 | `internal/httpapi` | Adaptateur HTTP : routes, JSON, PIN, page mobile embarquée (`page.html`). Ne dépend que de `league` et `icon`. |
-| `main.go` | Racine de composition : assemble `lcu.Client` → `league.Service` → `httpapi.Server`. |
+| `internal/trayui` | Icône de la zone de notification (Windows uniquement, `//go:build windows`) ; une version de repli console-only compile sur les autres OS pour le développement. |
+| `main.go` | Racine de composition : assemble `lcu.Client` → `league.Service` → `httpapi.Server` → `trayui`. |
 
 ### Routes du serveur
 
@@ -90,10 +96,10 @@ Toutes les routes `/api/*` exigent l'en-tête `X-Pin`.
 ## Compiler depuis les sources
 
 ```
-go build -o lol-remote.exe .          # depuis Linux/macOS : GOOS=windows GOARCH=amd64 go build ...
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o lol-remote.exe .
 ```
 
-Aucune dépendance externe (bibliothèque standard uniquement).
+`-H=windowsgui` évite qu'une console s'ouvre derrière l'icône de la zone de notification. Deux dépendances (sans cgo, donc compatible cross-compilation) : [`getlantern/systray`](https://github.com/getlantern/systray) pour l'icône et [`skip2/go-qrcode`](https://github.com/skip2/go-qrcode) pour le code QR.
 
 ## Publier une release
 
@@ -110,7 +116,7 @@ git push origin v1.0.0
 - `champion-summary.json` contient des variantes de modes spéciaux avec le même nom et un autre ID ; on garde l'ID le plus petit par nom.
 - Pendant un ban, la liste des champions autorisés est calculée côté serveur (tous sauf ceux déjà bannis ou verrouillés), car `bannable-champion-ids` n'est pas fiable.
 - Sur certaines versions, la modification d'une page (`PUT`) échoue : la page est alors supprimée puis recréée.
-- En `http` sur le Wi-Fi, le PIN circule en clair sur le réseau local. Ne pas exposer le port 8080 directement sur Internet.
+- En `http` sur le Wi-Fi, le PIN circule en clair sur le réseau local. Ne pas exposer le port directement sur Internet.
 
 ## Historique
 
