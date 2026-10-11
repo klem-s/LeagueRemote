@@ -159,6 +159,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 
 <main class="pane" id="select" hidden>
   <div class="teams" id="teams"></div>
+  <label class="toggle" id="previewToggleWrap" hidden><input type="checkbox" id="previewPick"> Taps preview my pick instead of banning</label>
   <input type="search" id="search" placeholder="Search for a champion" autocomplete="off">
   <div class="grid" id="grid"></div>
 </main>
@@ -361,13 +362,18 @@ function renderGrid(){
     b.innerHTML = `<img loading="lazy" alt="" src="/icon/${c.id}"><span>${esc(c.name)}</span>`;
     b.onclick = () => {
       chosen = c.id; renderGrid(); renderBar();
-      // While something of the player's own is actively in progress (their
-      // ban or pick turn), hover THAT — a ban turn must hover the ban, not
-      // silently overwrite a previously-set pick preview. upcomingPick only
-      // takes over when nothing is currently active, which is the genuine
-      // pre-pick case.
       const a = st?.select?.action;
-      send(false, a?.inProgress ? a : (st?.select?.upcomingPick || a));
+      const upcoming = st?.select?.upcomingPick;
+      // Most queues run simultaneous bans, so a player's own ban stays
+      // isInProgress for the whole ban phase, not just a brief turn — the
+      // same grid is used both to choose a ban target and (via the toggle)
+      // to preview a future pick, and there's no way to tell them apart
+      // except by asking. Default: hover whatever's actively in progress
+      // (the normal case). The toggle, shown only when there's a real
+      // ambiguity (banning with a pick still pending), overrides that.
+      const previewPick = !$("previewToggleWrap").hidden && $("previewPick").checked;
+      const target = previewPick ? (upcoming || a) : (a?.inProgress ? a : (upcoming || a));
+      send(false, target);
     };
     g.appendChild(b);
   }
@@ -383,6 +389,9 @@ function renderBar(){
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
+  // Only ambiguous (and only worth asking about) while actively banning
+  // with a separate pick still pending to preview.
+  $("previewToggleWrap").hidden = !(isBan && a?.inProgress && st?.select?.upcomingPick);
 }
 
 async function send(lock, action){
