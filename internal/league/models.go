@@ -12,6 +12,7 @@ type Champion struct {
 type SummonerSpell struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
+	Icon string `json:"icon"`
 }
 
 // LiveStats is the local player's live in-game line, read from the Live

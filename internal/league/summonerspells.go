@@ -26,7 +26,9 @@ func (s *Service) SummonerSpells() ([]SummonerSpell, error) {
 		if id <= 0 || name == "" {
 			continue
 		}
-		out = append(out, SummonerSpell{ID: id, Name: name})
+		// The actual iconPath from the data, same as Perk/Style icons in
+		// runes.go — not a guessed URL pattern like champion-icons/{id}.png.
+		out = append(out, SummonerSpell{ID: id, Name: name, Icon: asString(c["iconPath"])})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	s.spellsCache = out

@@ -341,7 +341,7 @@ function renderSpellRow(){
   const s1 = st.select.spell1, s2 = st.select.spell2;
   const chip = (id, slot) => {
     const sp = spellById[id];
-    const pic = sp ? `<img src="/spellicon/${id}" alt="">` : `<div class="ph"></div>`;
+    const pic = sp ? img(sp.icon) : `<div class="ph"></div>`;
     return `<button class="spellSlot${pickingSpellSlot === slot ? " sel" : ""}" data-slot="${slot}">${pic}<span>${esc(sp?.name || (slot === 1 ? "D" : "F"))}</span></button>`;
   };
   $("spellRow").innerHTML = chip(s1, 1) + chip(s2, 2);
@@ -356,7 +356,7 @@ function renderSpellGrid(){
   const other = pickingSpellSlot === 1 ? st.select.spell2 : st.select.spell1;
   g.innerHTML = spells.map(sp => `
     <button class="champ${sp.id === current ? " sel" : ""}" data-id="${sp.id}" ${sp.id === other ? "disabled" : ""}>
-      <img src="/spellicon/${sp.id}" alt=""><span>${esc(sp.name)}</span>
+      ${img(sp.icon)}<span>${esc(sp.name)}</span>
     </button>`).join("");
 }
 
