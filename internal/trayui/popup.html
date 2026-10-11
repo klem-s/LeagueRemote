@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --abyss:#091428; --deep:#0f1e33; --line:#463714; --gold:#c8aa6e; --gold-hi:#f0e6d2;
+  --teal:#0ac8b9; --muted:#7b8a99;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--abyss); color:var(--gold-hi);
+  font:15px/1.4 Inter,system-ui,sans-serif;
+  display:flex; align-items:center; justify-content:center;
+  -webkit-user-select:text;
+}
+.card{
+  width:100%; max-width:320px; padding:28px 26px; text-align:center;
+}
+h1{
+  font:400 22px Marcellus,Georgia,serif; color:var(--gold); margin:0 0 4px;
+  letter-spacing:.02em;
+}
+.sub{color:var(--muted); font-size:13px; margin:0 0 24px}
+.field{margin-bottom:18px}
+.label{
+  font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--muted); margin:0 0 6px;
+}
+.value{
+  font:600 15px/1.4 Inter,sans-serif; color:var(--gold-hi); word-break:break-all;
+  background:var(--deep); border:1px solid var(--line); border-radius:3px;
+  padding:9px 12px;
+}
+.value.pin{
+  font:600 30px Marcellus,Georgia,serif; letter-spacing:.08em; color:var(--teal);
+  padding:10px 12px;
+}
+.qr{
+  margin-top:20px; display:inline-block; padding:10px; background:#fff;
+  border-radius:4px; line-height:0;
+}
+.qr img{display:block; width:168px; height:168px}
+.hint{color:var(--muted); font-size:12px; margin:14px 0 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>LoL Remote</h1>
+  <p class="sub">Scanne le code ou saisis l'adresse sur ton téléphone</p>
+
+  <div class="field">
+    <p class="label">Adresse</p>
+    <p class="value">__URL__</p>
+  </div>
+  <div class="field">
+    <p class="label">Code PIN</p>
+    <p class="value pin">__PIN__</p>
+  </div>
+
+  <div class="qr"><img src="data:image/png;base64,__QR__" alt="Code QR"></div>
+  <p class="hint">Même réseau Wi-Fi que ce PC</p>
+</div>
+</body>
+</html>

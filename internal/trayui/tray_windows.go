@@ -5,17 +5,28 @@
 package trayui
 
 import (
+	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"os"
-	"os/exec"
+	"runtime"
+	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 
 	"github.com/getlantern/systray"
+	webview "github.com/jchv/go-webview2"
 	qrcode "github.com/skip2/go-qrcode"
 
 	"lolremote/internal/icon"
 )
+
+//go:embed popup.html
+var popupTemplate string
+
+var popupOpenMu sync.Mutex
+var popupOpen bool
 
 // Run shows the tray icon and blocks forever running its message loop.
 func Run(pin, url string) {
@@ -27,45 +38,73 @@ func onReady(pin, url string) {
 	systray.SetTitle("LoL Remote")
 	systray.SetTooltip("LoL Remote — PIN " + pin)
 
-	info := systray.AddMenuItem("Adresse et code PIN", "Affiche l'adresse et le PIN")
-	qr := systray.AddMenuItem("Code QR", "Ouvre un code QR vers l'adresse")
+	show := systray.AddMenuItem("Afficher", "Affiche l'adresse et le PIN")
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("Quitter", "Arrête LoL Remote")
 
 	// Affichée immédiatement au lancement : on ne veut pas que l'utilisateur
 	// ait à deviner qu'il faut ouvrir le menu de l'icône pour voir le PIN.
-	go messageBox("LoL Remote", fmt.Sprintf("Adresse : %s\nCode PIN : %s", url, pin))
+	showPopup(pin, url)
+
+	for {
+		select {
+		case <-show.ClickedCh:
+			showPopup(pin, url)
+		case <-quit.ClickedCh:
+			systray.Quit()
+			os.Exit(0)
+		}
+	}
+}
+
+// showPopup opens the styled info window in its own locked OS thread (Win32
+// windows are thread-affine: creation and message loop must share a
+// thread). Falls back to a plain MessageBox if WebView2 isn't available —
+// e.g. an unmaintained Windows install without the Evergreen runtime.
+func showPopup(pin, url string) {
+	popupOpenMu.Lock()
+	if popupOpen {
+		popupOpenMu.Unlock()
+		return
+	}
+	popupOpen = true
+	popupOpenMu.Unlock()
 
 	go func() {
-		for {
-			select {
-			case <-info.ClickedCh:
-				messageBox("LoL Remote", fmt.Sprintf("Adresse : %s\nCode PIN : %s", url, pin))
-			case <-qr.ClickedCh:
-				showQR(url)
-			case <-quit.ClickedCh:
-				systray.Quit()
-				os.Exit(0)
-			}
+		defer func() {
+			popupOpenMu.Lock()
+			popupOpen = false
+			popupOpenMu.Unlock()
+		}()
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		w := webview.NewWithOptions(webview.WebViewOptions{
+			WindowOptions: webview.WindowOptions{
+				Title: "LoL Remote", Width: 360, Height: 560, Center: true,
+			},
+		})
+		if w == nil {
+			messageBox("LoL Remote", fmt.Sprintf("Adresse : %s\nCode PIN : %s", url, pin))
+			return
 		}
+		defer w.Destroy()
+
+		w.SetHtml(renderPopup(pin, url))
+		w.Run()
 	}()
 }
 
-// showQR renders the URL as a QR code and opens it in the default image
-// viewer — simpler and more robust than drawing a custom window.
-func showQR(url string) {
-	png, err := qrcode.Encode(url, qrcode.Medium, 256)
-	if err != nil {
-		messageBox("LoL Remote — Erreur", "Impossible de générer le code QR : "+err.Error())
-		return
+func renderPopup(pin, url string) string {
+	qrB64 := ""
+	if png, err := qrcode.Encode(url, qrcode.Medium, 220); err == nil {
+		qrB64 = base64.StdEncoding.EncodeToString(png)
 	}
-	f, err := os.CreateTemp("", "lol-remote-qr-*.png")
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	_, _ = f.Write(png)
-	_ = exec.Command("cmd", "/c", "start", "", f.Name()).Start()
+	html := popupTemplate
+	html = strings.ReplaceAll(html, "__URL__", url)
+	html = strings.ReplaceAll(html, "__PIN__", pin)
+	html = strings.ReplaceAll(html, "__QR__", qrB64)
+	return html
 }
 
 // ReportFatal shows an error dialog — there is no console to print to.

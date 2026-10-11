@@ -31,7 +31,7 @@ Le client League expose une API REST non officielle, la **LCU API**, qui n'écou
 lol-remote.exe
 ```
 
-Une fenêtre affiche l'adresse et le code PIN au démarrage ; l'icône dans la zone de notification permet de les revoir à tout moment, d'ouvrir un code QR vers l'adresse, ou de quitter.
+Une fenêtre affiche l'adresse, le code PIN et un code QR au démarrage ; l'icône dans la zone de notification permet de la rouvrir à tout moment, ou de quitter.
 
 Le PIN est aléatoire à chaque lancement, sauf si la variable d'environnement `LOL_REMOTE_PIN` est définie. Le port par défaut est `53217` ; s'il est déjà pris, un port libre est choisi automatiquement.
 
@@ -57,7 +57,8 @@ Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 53217` rend l'
 - Manifest et icône générés en PNG au démarrage : l'app s'ajoute à l'écran d'accueil et s'ouvre en plein écran.
 
 **Sur le PC**
-- Pas de console : une icône dans la zone de notification, menu « Adresse et code PIN », « Code QR » (ouvre un PNG du QR dans la visionneuse par défaut) et « Quitter ».
+- Pas de console : une icône dans la zone de notification, menu « Afficher » (adresse, PIN et QR dans une fenêtre reprenant le thème hextech de l'app mobile) et « Quitter ».
+- Si le runtime WebView2 n'est pas installé (rare — présent par défaut sur Windows 11 et déployé par Windows Update sur la plupart des Windows 10), repli automatique sur une boîte de dialogue système.
 
 ## Structure du projet
 
@@ -69,7 +70,7 @@ Architecture en couches (clean architecture) :
 | `internal/lcu` | Adaptateur : implémente `league.Client` par-dessus l'API LCU réelle (HTTPS, découverte des identifiants). |
 | `internal/icon` | Génération de l'icône PNG/ICO et du manifest, sans dépendance. |
 | `internal/httpapi` | Adaptateur HTTP : routes, JSON, PIN, page mobile embarquée (`page.html`). Ne dépend que de `league` et `icon`. |
-| `internal/trayui` | Icône de la zone de notification (Windows uniquement, `//go:build windows`) ; une version de repli console-only compile sur les autres OS pour le développement. |
+| `internal/trayui` | Icône de la zone de notification et fenêtre d'info (`popup.html`, Windows uniquement, `//go:build windows`) ; une version de repli console-only compile sur les autres OS pour le développement. |
 | `main.go` | Racine de composition : assemble `lcu.Client` → `league.Service` → `httpapi.Server` → `trayui`. |
 
 ### Routes du serveur
@@ -99,7 +100,10 @@ Toutes les routes `/api/*` exigent l'en-tête `X-Pin`.
 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o lol-remote.exe .
 ```
 
-`-H=windowsgui` évite qu'une console s'ouvre derrière l'icône de la zone de notification. Deux dépendances (sans cgo, donc compatible cross-compilation) : [`getlantern/systray`](https://github.com/getlantern/systray) pour l'icône et [`skip2/go-qrcode`](https://github.com/skip2/go-qrcode) pour le code QR.
+`-H=windowsgui` évite qu'une console s'ouvre derrière l'icône de la zone de notification. Trois dépendances (aucune cgo, donc compatible cross-compilation depuis Linux/macOS) :
+- [`getlantern/systray`](https://github.com/getlantern/systray) pour l'icône de la zone de notification.
+- [`jchv/go-webview2`](https://github.com/jchv/go-webview2) pour la fenêtre (liaison pure Go vers le contrôle WebView2 de Windows).
+- [`skip2/go-qrcode`](https://github.com/skip2/go-qrcode) pour générer le code QR embarqué dans cette fenêtre.
 
 ## Publier une release
 
