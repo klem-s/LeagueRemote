@@ -19,7 +19,10 @@ jobs:
           go-version-file: go.mod
 
       - name: Build Windows binary
-        run: GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o lol-remote.exe .
+        run: |
+          GOOS=windows GOARCH=amd64 go build \
+            -ldflags="-s -w -H=windowsgui -X main.version=${{ github.ref_name }}" \
+            -o lol-remote.exe .
 
       - name: Create release
         env:

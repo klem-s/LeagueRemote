@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"sync"
@@ -29,14 +30,18 @@ var popupOpenMu sync.Mutex
 var popupOpen bool
 
 // Run shows the tray icon and blocks forever running its message loop.
-func Run(pin, url string) {
-	systray.Run(func() { onReady(pin, url) }, func() {})
+func Run(pin, url string, update Update) {
+	systray.Run(func() { onReady(pin, url, update) }, func() {})
 }
 
-func onReady(pin, url string) {
+func onReady(pin, url string, update Update) {
 	systray.SetIcon(icon.ICO(32))
 	systray.SetTitle("LoL Remote")
-	systray.SetTooltip("LoL Remote — PIN " + pin)
+	tooltip := "LoL Remote — PIN " + pin
+	if update.Tag != "" {
+		tooltip += " (update available)"
+	}
+	systray.SetTooltip(tooltip)
 
 	show := systray.AddMenuItem("Show", "Show the address and PIN")
 	systray.AddSeparator()
@@ -44,12 +49,12 @@ func onReady(pin, url string) {
 
 	// Shown immediately at launch: the user shouldn't have to guess that
 	// the tray menu is where the PIN lives.
-	showPopup(pin, url)
+	showPopup(pin, url, update)
 
 	for {
 		select {
 		case <-show.ClickedCh:
-			showPopup(pin, url)
+			showPopup(pin, url, update)
 		case <-quit.ClickedCh:
 			systray.Quit()
 			os.Exit(0)
@@ -61,7 +66,7 @@ func onReady(pin, url string) {
 // windows are thread-affine: creation and message loop must share a
 // thread). Falls back to a plain MessageBox if WebView2 isn't available —
 // e.g. an unmaintained Windows install without the Evergreen runtime.
-func showPopup(pin, url string) {
+func showPopup(pin, url string, update Update) {
 	popupOpenMu.Lock()
 	if popupOpen {
 		popupOpenMu.Unlock()
@@ -87,7 +92,11 @@ func showPopup(pin, url string) {
 			},
 		})
 		if w == nil {
-			messageBox("LoL Remote", fmt.Sprintf("Address: %s\nPIN code: %s", url, pin))
+			text := fmt.Sprintf("Address: %s\nPIN code: %s", url, pin)
+			if update.Tag != "" {
+				text += fmt.Sprintf("\n\nUpdate available: %s\n%s", update.Tag, update.URL)
+			}
+			messageBox("LoL Remote", text)
 			return
 		}
 		defer w.Destroy()
@@ -99,20 +108,32 @@ func showPopup(pin, url string) {
 		// scrollbar. It also drops the resize/maximize affordances.
 		w.SetSize(popupWidth, popupHeight, webview.HintFixed)
 
-		w.SetHtml(renderPopup(pin, url))
+		// Links in the popup open in the system browser instead of
+		// navigating the popup itself away from its own content.
+		_ = w.Bind("openurl", func(target string) { _ = exec.Command("cmd", "/c", "start", "", target).Start() })
+
+		w.SetHtml(renderPopup(pin, url, update))
 		w.Run()
 	}()
 }
 
-func renderPopup(pin, url string) string {
+func renderPopup(pin, url string, update Update) string {
 	qrB64 := ""
 	if png, err := qrcode.Encode(url, qrcode.Medium, 220); err == nil {
 		qrB64 = base64.StdEncoding.EncodeToString(png)
+	}
+	updateBlock := ""
+	if update.Tag != "" {
+		updateBlock = fmt.Sprintf(
+			`<button class="update" onclick="window.openurl('%s')">Update available: %s</button>`,
+			strings.ReplaceAll(update.URL, "'", ""), update.Tag,
+		)
 	}
 	html := popupTemplate
 	html = strings.ReplaceAll(html, "__URL__", url)
 	html = strings.ReplaceAll(html, "__PIN__", pin)
 	html = strings.ReplaceAll(html, "__QR__", qrB64)
+	html = strings.ReplaceAll(html, "__UPDATE__", updateBlock)
 	return html
 }
 

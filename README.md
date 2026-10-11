@@ -59,6 +59,8 @@ Avec Tailscale sur le PC et le téléphone, `tailscale serve --bg 53217` rend l'
 **Sur le PC**
 - Pas de console : une icône dans la zone de notification, menu « Show » (adresse, PIN et QR dans une fenêtre reprenant le thème hextech de l'app mobile, en anglais) et « Quit ».
 - Si le runtime WebView2 n'est pas installé (rare — présent par défaut sur Windows 11 et déployé par Windows Update sur la plupart des Windows 10), repli automatique sur une boîte de dialogue système.
+- Une seule instance à la fois : relancer l'exécutable pendant qu'il tourne déjà affiche juste un message au lieu d'ouvrir une deuxième icône/serveur.
+- Vérification d'une nouvelle version au démarrage (releases GitHub) ; si une version plus récente existe, un bouton dans la fenêtre y renvoie. Aucun téléchargement ni remplacement automatique.
 
 ## Structure du projet
 
@@ -71,6 +73,8 @@ Architecture en couches (clean architecture) :
 | `internal/icon` | Génération de l'icône PNG/ICO et du manifest, sans dépendance. |
 | `internal/httpapi` | Adaptateur HTTP : routes, JSON, PIN, page mobile embarquée (`page.html`). Ne dépend que de `league` et `icon`. |
 | `internal/trayui` | Icône de la zone de notification et fenêtre d'info (`popup.html`, Windows uniquement, `//go:build windows`) ; une version de repli console-only compile sur les autres OS pour le développement. |
+| `internal/singleinstance` | Mutex Windows nommé empêchant deux instances de tourner en même temps. |
+| `internal/updatecheck` | Appelle l'API GitHub (`/releases/latest`) pour savoir si une version plus récente existe. |
 | `main.go` | Racine de composition : assemble `lcu.Client` → `league.Service` → `httpapi.Server` → `trayui`. |
 
 ### Routes du serveur
@@ -97,8 +101,10 @@ Toutes les routes `/api/*` exigent l'en-tête `X-Pin`.
 ## Compiler depuis les sources
 
 ```
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o lol-remote.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui -X main.version=v0.0.0-dev" -o lol-remote.exe .
 ```
+
+`-X main.version=...` embeds the version the update check compares against GitHub's latest release; the release CI sets it from the pushed tag automatically. Omit it (or leave it as the default `dev`) for local builds — the update check just skips itself.
 
 `-H=windowsgui` évite qu'une console s'ouvre derrière l'icône de la zone de notification. Trois dépendances (aucune cgo, donc compatible cross-compilation depuis Linux/macOS) :
 - [`getlantern/systray`](https://github.com/getlantern/systray) pour l'icône de la zone de notification.

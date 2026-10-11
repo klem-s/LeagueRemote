@@ -21,12 +21,21 @@ import (
 	"lolremote/internal/httpapi"
 	"lolremote/internal/lcu"
 	"lolremote/internal/league"
+	"lolremote/internal/singleinstance"
 	"lolremote/internal/trayui"
+	"lolremote/internal/updatecheck"
 )
 
 // Port par défaut : moins commun que 8080, pour limiter les conflits
 // avec d'autres outils locaux. Choisi arbitrairement, sans signification.
 const defaultPort = 53217
+
+const githubRepo = "klem-s/LeagueRemote"
+
+// Set at release build time via -ldflags "-X main.version=vX.Y.Z" (see
+// .github/workflows/release.yml). Left as "dev" for local builds, which
+// skips the update check — there is no meaningful "latest" to compare to.
+var version = "dev"
 
 func localIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -37,7 +46,23 @@ func localIP() string {
 	return conn.LocalAddr().(*net.UDPAddr).IP.String()
 }
 
+func checkForUpdate() trayui.Update {
+	if version == "dev" {
+		return trayui.Update{}
+	}
+	rel, err := updatecheck.Latest(githubRepo)
+	if err != nil || rel.Tag == "" || rel.Tag == version {
+		return trayui.Update{}
+	}
+	return trayui.Update{Tag: rel.Tag, URL: rel.URL}
+}
+
 func main() {
+	if !singleinstance.Acquire() {
+		trayui.ReportFatal("LoL Remote is already running — check your system tray.")
+		os.Exit(0)
+	}
+
 	pin := os.Getenv("LOL_REMOTE_PIN")
 	if pin == "" {
 		pin = strconv.Itoa(1000 + rand.Intn(9000))
@@ -67,5 +92,7 @@ func main() {
 		}
 	}()
 
-	trayui.Run(pin, url) // bloque : boucle de l'icône dans la zone de notification
+	update := checkForUpdate()
+
+	trayui.Run(pin, url, update) // bloque : boucle de l'icône dans la zone de notification
 }

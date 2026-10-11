@@ -7,13 +7,16 @@ package trayui
 
 import "fmt"
 
-func Run(pin, url string) {
+func Run(pin, url string, update Update) {
 	fmt.Println()
 	fmt.Println("  LoL Remote lancé")
 	fmt.Println("  Sur ton téléphone :", url)
 	fmt.Println("  Code PIN          :", pin)
 	fmt.Println()
 	fmt.Println("  (Ctrl+C pour arrêter)")
+	if update.Tag != "" {
+		fmt.Println("  Update available:", update.Tag, update.URL)
+	}
 	select {}
 }
 

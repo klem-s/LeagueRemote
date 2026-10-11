@@ -45,6 +45,12 @@ h1{
 }
 .qr img{display:block; width:150px; height:150px}
 .hint{color:var(--muted); font-size:12px; margin:12px 0 0}
+.update{
+  display:inline-block; margin-top:14px; padding:6px 14px;
+  background:var(--deep); border:1px solid var(--gold); border-radius:20px;
+  color:var(--gold); font:600 12px Inter,sans-serif; cursor:pointer;
+}
+.update:hover{background:var(--line)}
 </style>
 </head>
 <body>
@@ -63,6 +69,7 @@ h1{
 
   <div class="qr"><img src="data:image/png;base64,__QR__" alt="QR code"></div>
   <p class="hint">Same Wi-Fi network as this PC</p>
+  __UPDATE__
 </div>
 </body>
 </html>
