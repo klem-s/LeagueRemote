@@ -60,3 +60,86 @@ func TestStatePicking(t *testing.T) {
 		t.Errorf("Enemy0 (cell 5, not isInProgress) should not be Picking")
 	}
 }
+
+// TestStatePlanning checks the Planning flag the mobile page uses to decide
+// whether a pre-turn Hover is allowed: true when timer.phase is PLANNING,
+// false otherwise — even if the player's own action isn't in progress
+// either way, since "no action in progress" alone doesn't mean planning.
+func TestStatePlanning(t *testing.T) {
+	baseSession := func(phase string) map[string]interface{} {
+		return map[string]interface{}{
+			"localPlayerCellId": float64(1),
+			"myTeam": []interface{}{
+				map[string]interface{}{"cellId": float64(1), "championId": float64(0), "gameName": "Me"},
+			},
+			"theirTeam": []interface{}{},
+			"actions": []interface{}{
+				[]interface{}{
+					map[string]interface{}{"id": float64(20), "actorCellId": float64(1), "type": "pick", "isInProgress": false, "completed": false},
+				},
+			},
+			"bans":  map[string]interface{}{},
+			"timer": map[string]interface{}{"adjustedTimeLeftInPhase": float64(30000), "phase": phase},
+		}
+	}
+
+	for _, tc := range []struct {
+		phase string
+		want  bool
+	}{
+		{"PLANNING", true},
+		{"BAN_PICK", false},
+		{"FINALIZATION", false},
+		{"", false},
+	} {
+		client := &fakeClient{responses: map[string]interface{}{
+			"/lol-gameflow/v1/gameflow-phase": "ChampSelect",
+			"/lol-champ-select/v1/session":    baseSession(tc.phase),
+		}}
+		svc := NewService(client)
+		result := svc.State()
+		if result.Select == nil {
+			t.Fatalf("phase %q: expected a select state", tc.phase)
+		}
+		if result.Select.Planning != tc.want {
+			t.Errorf("phase %q: Planning = %v, want %v", tc.phase, result.Select.Planning, tc.want)
+		}
+	}
+}
+
+// TestBuildTeamsTrades checks that a trade entry from the session is
+// attached to the matching ally's cell, and never to "me" or to enemies —
+// trades are only ever offered between allies.
+func TestBuildTeamsTrades(t *testing.T) {
+	session := map[string]interface{}{
+		"localPlayerCellId": float64(1),
+		"myTeam": []interface{}{
+			map[string]interface{}{"cellId": float64(0), "gameName": "Ally0"},
+			map[string]interface{}{"cellId": float64(1), "gameName": "Me"},
+		},
+		"theirTeam": []interface{}{
+			map[string]interface{}{"cellId": float64(5), "gameName": "Enemy0"},
+		},
+		"actions": []interface{}{},
+		"bans":    map[string]interface{}{},
+		"trades": []interface{}{
+			map[string]interface{}{"id": float64(7), "cellId": float64(0), "state": "RECEIVED"},
+			// An entry keyed by my own cellId or an enemy's should never
+			// surface — the LCU shouldn't send these, but don't trust it.
+			map[string]interface{}{"id": float64(8), "cellId": float64(1), "state": "AVAILABLE"},
+			map[string]interface{}{"id": float64(9), "cellId": float64(5), "state": "AVAILABLE"},
+		},
+	}
+
+	teams := buildTeams(session)
+
+	if teams.Allies[0].TradeID != 7 || teams.Allies[0].TradeState != "RECEIVED" {
+		t.Errorf("Ally0: got TradeID=%d TradeState=%q, want 7/RECEIVED", teams.Allies[0].TradeID, teams.Allies[0].TradeState)
+	}
+	if teams.Allies[1].TradeState != "" {
+		t.Errorf("Me: got TradeState=%q, want empty (no self-trade)", teams.Allies[1].TradeState)
+	}
+	if teams.Enemies[0].TradeState != "" {
+		t.Errorf("Enemy0: got TradeState=%q, want empty (enemies never trade)", teams.Enemies[0].TradeState)
+	}
+}

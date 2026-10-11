@@ -75,8 +75,29 @@ func (s *Server) handleAPIPost(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, 200, map[string]interface{}{"ok": true})
 
-	case "/api/preselect":
-		if err := s.svc.Preselect(asInt(body["championId"])); err != nil {
+	case "/api/trades/request":
+		if err := s.svc.RequestTrade(asInt(body["id"])); err != nil {
+			s.writeAPIErr(w, err)
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{"ok": true})
+
+	case "/api/trades/accept":
+		if err := s.svc.AcceptTrade(asInt(body["id"])); err != nil {
+			s.writeAPIErr(w, err)
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{"ok": true})
+
+	case "/api/trades/decline":
+		if err := s.svc.DeclineTrade(asInt(body["id"])); err != nil {
+			s.writeAPIErr(w, err)
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{"ok": true})
+
+	case "/api/trades/cancel":
+		if err := s.svc.CancelTrade(asInt(body["id"])); err != nil {
 			s.writeAPIErr(w, err)
 			return
 		}
@@ -157,7 +178,7 @@ func (s *Server) writeAPIErr(w http.ResponseWriter, err error) {
 	if errors.As(err, &remoteErr) {
 		msg := extractMessage(remoteErr.Body)
 		if msg == "" {
-			msg = fmt.Sprintf("Erreur %d", remoteErr.Code)
+			msg = fmt.Sprintf("Error %d", remoteErr.Code)
 		}
 		writeJSON(w, 400, map[string]interface{}{"error": msg})
 		return

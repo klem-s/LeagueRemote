@@ -53,13 +53,27 @@ func buildTeams(s map[string]interface{}) Teams {
 		}
 	}
 
+	// One entry per potential trade partner, keyed by their cellId: state is
+	// "AVAILABLE" (you can request), "SENT" (you're waiting on them),
+	// "RECEIVED" (they're waiting on you), or "BUSY"/"INVALID" (not
+	// actionable right now).
+	type tradeInfo struct {
+		id    int
+		state string
+	}
+	tradesByCell := map[int]tradeInfo{}
+	for _, item := range asList(s["trades"]) {
+		t := asMap(item)
+		tradesByCell[asInt(t["cellId"])] = tradeInfo{id: asInt(t["id"]), state: asString(t["state"])}
+	}
+
 	slot := func(c map[string]interface{}, ally bool) TeamSlot {
 		intent := 0
 		if ally {
 			intent = asInt(c["championPickIntent"])
 		}
 		cellID := asInt(c["cellId"])
-		return TeamSlot{
+		ts := TeamSlot{
 			Champion: asInt(c["championId"]),
 			Intent:   intent,
 			Position: strings.ToLower(asString(c["assignedPosition"])),
@@ -68,6 +82,13 @@ func buildTeams(s map[string]interface{}) Teams {
 			Locked:   locked[cellID],
 			Picking:  picking[cellID],
 		}
+		if ally && cellID != me {
+			if tr, ok := tradesByCell[cellID]; ok {
+				ts.TradeID = tr.id
+				ts.TradeState = tr.state
+			}
+		}
+		return ts
 	}
 
 	doneBans := func(ally bool) []int {
@@ -134,8 +155,14 @@ func (s *Service) State() StateResult {
 	sel := &SelectState{
 		TimeLeft:       asInt(timer["adjustedTimeLeftInPhase"]) / 1000,
 		LockedChampion: asInt(myCell["championId"]),
-		Allowed:        []int{},
-		Teams:          buildTeams(sess),
+		// During the simultaneous "planning" phase at the very start of
+		// champ select, the LCU accepts a champion hover on a pick action
+		// that isn't active yet — that's the official client's own
+		// pre-pick preview. Outside this phase it rejects the same PATCH,
+		// so the mobile page only offers it while Planning is true.
+		Planning: asString(timer["phase"]) == "PLANNING",
+		Allowed:  []int{},
+		Teams:    buildTeams(sess),
 	}
 
 	if a := myAction(sess); a != nil {
@@ -199,16 +226,36 @@ func (s *Service) Select(actionID, championID int, lock bool) error {
 	return nil
 }
 
-// Preselect broadcasts an intended champion to allies before the local
-// player's actual pick action is active (the client's own "planning phase"
-// preview). PATCHing a not-yet-active action via Select is rejected by the
-// LCU, so this goes through my-selection instead, the same endpoint the
-// official client uses for that preview.
-func (s *Service) Preselect(championID int) error {
-	_, err := s.client.Patch("/lol-champ-select/v1/session/my-selection", map[string]interface{}{"championId": championID})
+func actionPathFor(id int) string {
+	return "/lol-champ-select/v1/session/actions/" + strconv.Itoa(id)
+}
+
+// RequestTrade, AcceptTrade, DeclineTrade and CancelTrade drive the swap
+// flow for one teammate's trade slot (see buildTeams' tradesByCell).
+//
+// Best-effort: the LCU's trade schema isn't publicly documented (this
+// covers champion swaps; whether the newer in-client "role swap" uses the
+// same mechanism is unconfirmed), so this is implemented against the most
+// consistently corroborated community reverse-engineering rather than
+// verified first-hand — the same caveat this project already carries for
+// the recommended-runes endpoint.
+func (s *Service) RequestTrade(tradeID int) error {
+	_, err := s.client.Post(tradePathFor(tradeID)+"/request", nil)
+	return err
+}
+func (s *Service) AcceptTrade(tradeID int) error {
+	_, err := s.client.Post(tradePathFor(tradeID)+"/accept", nil)
+	return err
+}
+func (s *Service) DeclineTrade(tradeID int) error {
+	_, err := s.client.Post(tradePathFor(tradeID)+"/decline", nil)
+	return err
+}
+func (s *Service) CancelTrade(tradeID int) error {
+	_, err := s.client.Post(tradePathFor(tradeID)+"/cancel", nil)
 	return err
 }
 
-func actionPathFor(id int) string {
-	return "/lol-champ-select/v1/session/actions/" + strconv.Itoa(id)
+func tradePathFor(id int) string {
+	return "/lol-champ-select/v1/session/trades/" + strconv.Itoa(id)
 }

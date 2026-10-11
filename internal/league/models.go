@@ -17,6 +17,11 @@ type TeamSlot struct {
 	Me       bool   `json:"me"`
 	Locked   bool   `json:"locked"`
 	Picking  bool   `json:"picking"`
+	// Trade state for this ally slot (never set for "me" or enemies).
+	// TradeState is "" when there's nothing to show, otherwise one of
+	// AVAILABLE/SENT/RECEIVED/BUSY/INVALID as reported by the LCU.
+	TradeID    int    `json:"tradeId,omitempty"`
+	TradeState string `json:"tradeState,omitempty"`
 }
 
 type Teams struct {
@@ -36,6 +41,7 @@ type Action struct {
 type SelectState struct {
 	TimeLeft       int     `json:"timeLeft"`
 	LockedChampion int     `json:"lockedChampion"`
+	Planning       bool    `json:"planning"`
 	Action         *Action `json:"action"`
 	Allowed        []int   `json:"allowed"`
 	Teams          Teams   `json:"teams"`
