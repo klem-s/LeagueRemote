@@ -44,7 +44,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 **Match and champ select**
 - "Match found" screen with Accept/Decline, plus an auto-accept option.
 - Champion grid with search. Unplayable or already-taken champions are greyed out.
-- Hover or lock in a pick. Ban phase handled (Ban button). Preview a pick during the simultaneous "planning" phase at the start of champ select, before your turn is active.
+- Hover or lock in a pick. Ban phase handled (Ban button). Preview a pick before your turn is active, once every ban has resolved.
 - Request, receive, accept or decline a swap with a teammate — champion, position (lane/role) or pick order — via a small icon on their portrait, pulsing when they've sent you a request.
 - Phase timer, turns red under 10 seconds.
 - Draft overview: ally picks and hovers (hover shown translucent), enemy picks, both teams' bans, roles, and a highlight on whoever is currently picking. Names only show when the client provides them (Riot hides them in ranked).
@@ -129,7 +129,7 @@ git push origin v1.0.0
 - During a ban, the allowed-champion list is computed server-side (everything except already-banned or locked-in champions), since `bannable-champion-ids` isn't reliable.
 - On some client versions, editing a page (`PUT`) fails: the page is then deleted and recreated.
 - Over `http` on Wi-Fi, the PIN travels in the clear on the local network. Don't expose the port directly to the Internet.
-- Pre-picking before your turn: an earlier version gated this on `timer.phase == "PLANNING"`, which turned out to be wrong — real sessions show teammates' `championPickIntent` set during plain `BAN_PICK`, no distinct planning phase involved. The gate was removed; the app now always attempts it for picks (never for bans, no evidence that works). Still not independently verified end-to-end against a live client — if the LCU rejects it, the toast's error text is the next lead.
+- Pre-picking before your turn: gated on `BansDone` (true once every ban action, either team, has resolved) — confirmed by direct live testing, not a session-shape guess. Two earlier theories (`my-selection` endpoint, then `timer.phase == "PLANNING"`) were both tried and both wrong; this one matches "works after bans, not during" as actually observed. Bans themselves still have no pre-select mechanism.
 - Swaps come in three kinds, each a separate array in the session — `trades` (champion), `positionSwaps` (lane/role), `pickOrderSwaps` — all shaped `{id, cellId, state}` with `state` one of `AVAILABLE`/`SENT`/`RECEIVED`/`BUSY`/`INVALID`. This part is confirmed against a real session dump (`internal/league/champselect_test.go`'s `TestBuildTeamsSwapsRealSession`), not guessed. The *action* URLs (`.../trades/{id}/request`, `.../position-swaps/{id}/request`, `.../pick-order-swaps/{id}/request`, each with `/accept`, `/decline`, `/cancel`) follow the LCU's usual kebab-case convention and the `trades` ones are corroborated by several independent sources, but `position-swaps`/`pick-order-swaps` are an educated extrapolation, not yet exercised against a live client — if request/accept/decline/cancel misbehaves for those two, the LCU's actual error message (surfaced as a toast) is the fastest way to fix it.
 
 ## History

@@ -49,7 +49,7 @@ type Action struct {
 type SelectState struct {
 	TimeLeft       int     `json:"timeLeft"`
 	LockedChampion int     `json:"lockedChampion"`
-	Planning       bool    `json:"planning"`
+	BansDone       bool    `json:"bansDone"`
 	Action         *Action `json:"action"`
 	Allowed        []int   `json:"allowed"`
 	Teams          Teams   `json:"teams"`

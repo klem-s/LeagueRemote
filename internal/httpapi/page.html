@@ -372,13 +372,13 @@ function renderBar(){
     : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
-  // Gating this on timer.phase === "PLANNING" (a previous attempt) was
-  // wrong: real sessions show teammates' championPickIntent populated
-  // during plain BAN_PICK, well before their own action is active, with
-  // no PLANNING phase involved at all. So just always allow it for picks —
-  // bans stay turn-only since there's no comparable evidence for those.
+  // Confirmed by live testing: pre-picking a future pick action is
+  // rejected by the LCU until every ban has resolved (not about
+  // timer.phase, an earlier guess that didn't hold up) — bans stay
+  // turn-only, no evidence those can be pre-selected at all.
+  const canPreview = !isBan && st?.select?.bansDone;
   $("hoverBtn").textContent = (a && !a.inProgress) ? "Preview" : "Hover";
-  $("hoverBtn").disabled = !a || !chosen || (isBan && !a.inProgress);
+  $("hoverBtn").disabled = !a || !chosen || (!a.inProgress && !canPreview);
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
 }
 

@@ -61,49 +61,67 @@ func TestStatePicking(t *testing.T) {
 	}
 }
 
-// TestStatePlanning checks the Planning flag the mobile page uses to decide
-// whether a pre-turn Hover is allowed: true when timer.phase is PLANNING,
-// false otherwise — even if the player's own action isn't in progress
-// either way, since "no action in progress" alone doesn't mean planning.
-func TestStatePlanning(t *testing.T) {
-	baseSession := func(phase string) map[string]interface{} {
-		return map[string]interface{}{
-			"localPlayerCellId": float64(1),
-			"myTeam": []interface{}{
-				map[string]interface{}{"cellId": float64(1), "championId": float64(0), "gameName": "Me"},
+// TestStateBansDone checks the BansDone flag the mobile page uses to gate
+// pre-picking: false while any ban anywhere (including one not yet
+// started) is incomplete, true once every ban has resolved. Based on live
+// testing, not a session-shape guess — an earlier attempt gated this on
+// timer.phase == "PLANNING" instead, which didn't hold up (see git log).
+func TestStateBansDone(t *testing.T) {
+	// Modeled on a real captured session: one ban in progress (not
+	// completed), one pick action pending for the local player.
+	stillBanning := map[string]interface{}{
+		"localPlayerCellId": float64(0),
+		"myTeam": []interface{}{
+			map[string]interface{}{"cellId": float64(0), "championId": float64(0), "gameName": "Me"},
+		},
+		"theirTeam": []interface{}{},
+		"actions": []interface{}{
+			[]interface{}{
+				map[string]interface{}{"id": float64(0), "actorCellId": float64(0), "type": "ban", "isInProgress": true, "completed": false},
 			},
-			"theirTeam": []interface{}{},
-			"actions": []interface{}{
-				[]interface{}{
-					map[string]interface{}{"id": float64(20), "actorCellId": float64(1), "type": "pick", "isInProgress": false, "completed": false},
-				},
+			[]interface{}{
+				map[string]interface{}{"id": float64(1), "actorCellId": float64(0), "type": "pick", "isInProgress": false, "completed": false},
 			},
-			"bans":  map[string]interface{}{},
-			"timer": map[string]interface{}{"adjustedTimeLeftInPhase": float64(30000), "phase": phase},
-		}
+		},
+		"bans":  map[string]interface{}{},
+		"timer": map[string]interface{}{"adjustedTimeLeftInPhase": float64(24000), "phase": "PLANNING"},
 	}
 
-	for _, tc := range []struct {
-		phase string
-		want  bool
-	}{
-		{"PLANNING", true},
-		{"BAN_PICK", false},
-		{"FINALIZATION", false},
-		{"", false},
-	} {
-		client := &fakeClient{responses: map[string]interface{}{
-			"/lol-gameflow/v1/gameflow-phase": "ChampSelect",
-			"/lol-champ-select/v1/session":    baseSession(tc.phase),
-		}}
-		svc := NewService(client)
-		result := svc.State()
-		if result.Select == nil {
-			t.Fatalf("phase %q: expected a select state", tc.phase)
-		}
-		if result.Select.Planning != tc.want {
-			t.Errorf("phase %q: Planning = %v, want %v", tc.phase, result.Select.Planning, tc.want)
-		}
+	client := &fakeClient{responses: map[string]interface{}{
+		"/lol-gameflow/v1/gameflow-phase": "ChampSelect",
+		"/lol-champ-select/v1/session":    stillBanning,
+	}}
+	result := NewService(client).State()
+	if result.Select == nil {
+		t.Fatal("expected a select state")
+	}
+	if result.Select.BansDone {
+		t.Error("BansDone = true while a ban is still in progress, want false")
+	}
+
+	// Same shape, but the ban has resolved.
+	banResolved := map[string]interface{}{}
+	for k, v := range stillBanning {
+		banResolved[k] = v
+	}
+	banResolved["actions"] = []interface{}{
+		[]interface{}{
+			map[string]interface{}{"id": float64(0), "actorCellId": float64(0), "type": "ban", "isInProgress": false, "completed": true, "championId": float64(1)},
+		},
+		[]interface{}{
+			map[string]interface{}{"id": float64(1), "actorCellId": float64(0), "type": "pick", "isInProgress": false, "completed": false},
+		},
+	}
+	client2 := &fakeClient{responses: map[string]interface{}{
+		"/lol-gameflow/v1/gameflow-phase": "ChampSelect",
+		"/lol-champ-select/v1/session":    banResolved,
+	}}
+	result2 := NewService(client2).State()
+	if result2.Select == nil {
+		t.Fatal("expected a select state")
+	}
+	if !result2.Select.BansDone {
+		t.Error("BansDone = false once every ban is completed, want true")
 	}
 }
 
