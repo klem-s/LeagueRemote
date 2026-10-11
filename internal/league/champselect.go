@@ -5,7 +5,13 @@ import (
 	"strings"
 )
 
-// myAction returns the local player's pending pick or ban action, if any.
+// myAction returns the local player's current action to act on: whichever
+// of their own pending actions is actually in progress, or their pick as a
+// fallback when nothing is. This drives the main action bar (ban UI when
+// it's their ban turn, pick UI otherwise) — but it means that while a
+// player's ban is in progress, this returns the ban, not their (also
+// pending) pick. See myPickAction for a pick specifically regardless of
+// what else is active — that's what pre-picking needs to target.
 func myAction(session map[string]interface{}) map[string]interface{} {
 	me := asInt(session["localPlayerCellId"])
 	var mine []map[string]interface{}
@@ -21,6 +27,22 @@ func myAction(session map[string]interface{}) map[string]interface{} {
 	}
 	for _, a := range mine {
 		if asString(a["type"]) == "pick" {
+			return a
+		}
+	}
+	return nil
+}
+
+// myPickAction returns the local player's own pending pick action
+// specifically, even while a different action of theirs (typically a ban)
+// is the one currently in progress. Pre-picking needs this: targeting
+// myAction's result while a ban is active PATCHes the champion onto the
+// ban, not the pick, which is why it looked like pre-picking "didn't work"
+// before a ban but did after — it was hovering the wrong action.
+func myPickAction(session map[string]interface{}) map[string]interface{} {
+	me := asInt(session["localPlayerCellId"])
+	for _, a := range actions(session) {
+		if asInt(a["actorCellId"]) == me && asString(a["type"]) == "pick" && !asBool(a["completed"]) {
 			return a
 		}
 	}
@@ -175,6 +197,14 @@ func (s *Service) State() StateResult {
 		LockedChampion: asInt(myCell["championId"]),
 		Allowed:        []int{},
 		Teams:          buildTeams(sess),
+	}
+
+	if p := myPickAction(sess); p != nil {
+		sel.UpcomingPick = &Action{
+			ID: asInt(p["id"]), Type: "pick",
+			InProgress: asBool(p["isInProgress"]),
+			ChampionID: asInt(p["championId"]),
+		}
 	}
 
 	if a := myAction(sess); a != nil {

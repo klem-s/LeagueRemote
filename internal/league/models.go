@@ -50,8 +50,13 @@ type SelectState struct {
 	TimeLeft       int     `json:"timeLeft"`
 	LockedChampion int     `json:"lockedChampion"`
 	Action         *Action `json:"action"`
-	Allowed        []int   `json:"allowed"`
-	Teams          Teams   `json:"teams"`
+	// UpcomingPick is the player's own pending pick action specifically,
+	// even while a different action of theirs (e.g. an active ban) is the
+	// current Action. Pre-picking must target this, not Action — hovering
+	// Action while a ban is in progress PATCHes the ban, not the pick.
+	UpcomingPick *Action `json:"upcomingPick"`
+	Allowed      []int   `json:"allowed"`
+	Teams        Teams   `json:"teams"`
 }
 
 type StateResult struct {

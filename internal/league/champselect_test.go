@@ -61,6 +61,51 @@ func TestStatePicking(t *testing.T) {
 	}
 }
 
+// TestStateUpcomingPickDuringBan pins down the actual pre-pick bug: while
+// the local player's own ban is in progress, Action must be that ban (so
+// the ban UI/lock-in still works), but UpcomingPick must be their separate
+// pending pick action — modeled directly on a real captured session where
+// this distinction was missing and pre-picking silently hovered the ban
+// instead of the pick.
+func TestStateUpcomingPickDuringBan(t *testing.T) {
+	session := map[string]interface{}{
+		"localPlayerCellId": float64(0),
+		"myTeam": []interface{}{
+			map[string]interface{}{"cellId": float64(0), "championId": float64(0), "gameName": "Me"},
+		},
+		"theirTeam": []interface{}{},
+		"actions": []interface{}{
+			[]interface{}{
+				map[string]interface{}{"id": float64(0), "actorCellId": float64(0), "type": "ban", "isInProgress": true, "completed": false, "championId": float64(12)},
+			},
+			[]interface{}{
+				map[string]interface{}{"id": float64(1), "actorCellId": float64(0), "type": "pick", "isInProgress": false, "completed": false},
+			},
+		},
+		"bans":  map[string]interface{}{},
+		"timer": map[string]interface{}{"adjustedTimeLeftInPhase": float64(20000), "phase": "BAN_PICK"},
+	}
+
+	client := &fakeClient{responses: map[string]interface{}{
+		"/lol-gameflow/v1/gameflow-phase": "ChampSelect",
+		"/lol-champ-select/v1/session":    session,
+	}}
+	result := NewService(client).State()
+	if result.Select == nil {
+		t.Fatal("expected a select state")
+	}
+
+	if result.Select.Action == nil || result.Select.Action.Type != "ban" || result.Select.Action.ID != 0 {
+		t.Errorf("Action = %+v, want the in-progress ban (id 0)", result.Select.Action)
+	}
+	if result.Select.UpcomingPick == nil || result.Select.UpcomingPick.ID != 1 {
+		t.Fatalf("UpcomingPick = %+v, want the pending pick (id 1)", result.Select.UpcomingPick)
+	}
+	if result.Select.UpcomingPick.InProgress {
+		t.Error("UpcomingPick.InProgress = true, want false (it's not this player's active turn)")
+	}
+}
+
 // TestBuildTeamsSwaps checks that champion/position/pick-order swap entries
 // are attached to the matching ally's cell as Swaps, filtered to only
 // actionable states, and never attached to "me" or to enemies.

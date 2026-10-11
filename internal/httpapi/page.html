@@ -48,8 +48,9 @@ input:focus{outline:2px solid var(--teal);outline-offset:1px}
 .slot img.intent{opacity:.4}
 .slot.me img,.slot.me .empty{border:2px solid var(--gold)}
 .enemy .slot img,.enemy .slot .empty{border-color:#5a2a2a}
-.slot span,.slot small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.slot span,.slot small,.slot em{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .slot small{color:var(--gold-hi);font-size:11px}
+.slot em{font-style:normal;font-size:10px;color:var(--gold);letter-spacing:.02em}
 .slot.picking img,.slot.picking .empty{border:2px solid var(--teal);animation:pickPulse 1.1s ease-in-out infinite}
 .slot.picking span{color:var(--teal)}
 @keyframes pickPulse{0%,100%{box-shadow:0 0 0 0 rgba(10,200,185,.55)}50%{box-shadow:0 0 0 4px rgba(10,200,185,0)}}
@@ -279,9 +280,9 @@ async function renderChamp(){
 const SWAP_LABEL = {champion: "Champion", position: "Position", pickOrder: "Pick order"};
 let notifiedSwaps = new Set();
 
-function slot(c){
+function slot(c, ally){
   const id = c.champion || c.intent;
-  let label = c.me ? "You" : (c.name || ROLES[c.position] || "");
+  let label = c.me ? "You" : (c.name || "");
   if (c.picking) label = "Picking…";
   const pic = id ? `<img src="/icon/${id}" alt="" class="${c.locked ? "" : "intent"}">` : `<div class="empty"></div>`;
   const swaps = c.swaps || [];
@@ -289,7 +290,8 @@ function slot(c){
   const swapBtn = swaps.length
     ? `<button class="swapBtn ${received ? "RECEIVED" : swaps[0].state}" data-swaps='${JSON.stringify(swaps)}' aria-label="Swap options with ${esc(label)}">⇄</button>`
     : "";
-  return `<div class="slot${c.me ? " me" : ""}${c.picking ? " picking" : ""}">${pic}${swapBtn}<span>${esc(label)}</span><small>${esc(champById[id]?.name || "")}</small></div>`;
+  const role = ally && ROLES[c.position] ? `<em>${esc(ROLES[c.position])}</em>` : "";
+  return `<div class="slot${c.me ? " me" : ""}${c.picking ? " picking" : ""}">${pic}${swapBtn}<span>${esc(label)}</span>${role}<small>${esc(champById[id]?.name || "")}</small></div>`;
 }
 function renderTeams(){
   const T = st.select.teams; if (!T) return;
@@ -307,8 +309,8 @@ function renderTeams(){
   }
   const ban = id => `<img src="/icon/${id}" alt="${esc(champById[id]?.name || "")}">`;
   $("teams").innerHTML =
-    `<div><p class="sideLabel">Your team</p><div class="side">${T.allies.map(slot).join("")}</div></div>` +
-    (T.enemies.length ? `<div class="enemy"><p class="sideLabel">Opponents</p><div class="side">${T.enemies.map(slot).join("")}</div></div>` : "") +
+    `<div><p class="sideLabel">Your team</p><div class="side">${T.allies.map(c => slot(c, true)).join("")}</div></div>` +
+    (T.enemies.length ? `<div class="enemy"><p class="sideLabel">Opponents</p><div class="side">${T.enemies.map(c => slot(c, false)).join("")}</div></div>` : "") +
     ((T.allyBans.length || T.enemyBans.length)
       ? `<div class="bans">Bans ${T.allyBans.map(ban).join("")}<span class="sep"></span>${T.enemyBans.map(ban).join("")}</div>` : "");
 }
@@ -372,21 +374,22 @@ function renderBar(){
     : `<div><small>${a ? (isBan ? "Choose a champion to ban" : "Choose your champion") : "Nothing to do right now"}</small></div>`;
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
-  // No client-side gating here on purpose: two guesses at when this is
-  // allowed (PLANNING phase, then "after all bans") were both wrong, and
-  // each one disabled the button and hid the real LCU response. Always
-  // enabled now, for picks and bans alike — whatever the LCU actually
-  // says back (success or a real error) is the only reliable signal left.
-  $("hoverBtn").textContent = (a && !a.inProgress) ? "Preview" : "Hover";
-  $("hoverBtn").disabled = !a || !chosen;
+  // Hover/Preview targets the player's own pick action specifically
+  // (upcomingPick), not whatever's currently active (action) — while a
+  // ban is in progress, action IS that ban, and PATCHing a hovered
+  // champion onto it sets the ban target, not a pick preview. This was
+  // the real bug behind "pre-pick doesn't work during bans".
+  const hoverTarget = st?.select?.upcomingPick || a;
+  $("hoverBtn").textContent = (hoverTarget && !hoverTarget.inProgress) ? "Preview" : "Hover";
+  $("hoverBtn").disabled = !hoverTarget || !chosen;
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
 }
 
-async function send(lock){
-  const a = st?.select?.action; if (!a || !chosen) return;
-  try { await api("/api/select", {actionId: a.id, championId: chosen, lock}); tick(); } catch(e) { fail(e); }
+async function send(lock, action){
+  const target = action || st?.select?.action; if (!target || !chosen) return;
+  try { await api("/api/select", {actionId: target.id, championId: chosen, lock}); tick(); } catch(e) { fail(e); }
 }
-$("hoverBtn").onclick = () => send(false);
+$("hoverBtn").onclick = () => send(false, st?.select?.upcomingPick || st?.select?.action);
 $("lockBtn").onclick = () => send(true);
 $("search").oninput = renderGrid;
 
