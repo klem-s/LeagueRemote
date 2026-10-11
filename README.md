@@ -44,7 +44,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 **Match and champ select**
 - "Match found" screen with Accept/Decline, plus an auto-accept option.
 - Champion grid with search. Unplayable or already-taken champions are greyed out.
-- Tapping a champion hovers it immediately (no separate button). A separate Lock in / Ban button commits it. Most queues run simultaneous bans, so a player's own ban stays active for the whole ban phase — while banning with a pick still pending, a toggle appears to switch taps between choosing the ban target and previewing the pick.
+- Tapping a champion hovers it immediately (no separate button). A separate Lock in / Ban button commits it. Most queues run simultaneous bans, so a player's own ban stays active for the whole ban phase — a tap then targets the ban. A "Preview as my pick" button appears alongside it (while banning, with a pick still pending) as an explicit separate action for broadcasting a pick preview during that window.
 - Request, receive, accept or decline a swap with a teammate — champion, position (lane/role) or pick order — via a small icon on their portrait, pulsing when they've sent you a request.
 - Phase timer, turns red under 10 seconds.
 - Draft overview: ally picks and hovers (hover shown translucent), enemy picks, both teams' bans, roles, and a highlight on whoever is currently picking. Names only show when the client provides them (Riot hides them in ranked).

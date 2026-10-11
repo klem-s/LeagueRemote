@@ -159,7 +159,7 @@ img.sub{width:20px;height:20px;margin-left:-16px;align-self:flex-end;flex:none}
 
 <main class="pane" id="select" hidden>
   <div class="teams" id="teams"></div>
-  <label class="toggle" id="previewToggleWrap" hidden><input type="checkbox" id="previewPick"> Taps preview my pick instead of banning</label>
+  <button class="act" id="previewPickBtn" hidden>Preview as my pick</button>
   <input type="search" id="search" placeholder="Search for a champion" autocomplete="off">
   <div class="grid" id="grid"></div>
 </main>
@@ -362,18 +362,14 @@ function renderGrid(){
     b.innerHTML = `<img loading="lazy" alt="" src="/icon/${c.id}"><span>${esc(c.name)}</span>`;
     b.onclick = () => {
       chosen = c.id; renderGrid(); renderBar();
+      // Tapping always targets whatever's actively in progress for the
+      // player (their ban during ban phase, their pick during pick phase),
+      // falling back to their upcoming pick when nothing is active yet.
+      // Previewing a pick specifically while banning is a separate,
+      // explicit action — see previewPickBtn — not implied by this tap.
       const a = st?.select?.action;
       const upcoming = st?.select?.upcomingPick;
-      // Most queues run simultaneous bans, so a player's own ban stays
-      // isInProgress for the whole ban phase, not just a brief turn — the
-      // same grid is used both to choose a ban target and (via the toggle)
-      // to preview a future pick, and there's no way to tell them apart
-      // except by asking. Default: hover whatever's actively in progress
-      // (the normal case). The toggle, shown only when there's a real
-      // ambiguity (banning with a pick still pending), overrides that.
-      const previewPick = !$("previewToggleWrap").hidden && $("previewPick").checked;
-      const target = previewPick ? (upcoming || a) : (a?.inProgress ? a : (upcoming || a));
-      send(false, target);
+      send(false, a?.inProgress ? a : (upcoming || a));
     };
     g.appendChild(b);
   }
@@ -389,14 +385,16 @@ function renderBar(){
   $("lockBtn").textContent = isBan ? "Ban" : "Lock in";
   $("lockBtn").className = "act " + (isBan ? "ban" : "primary");
   $("lockBtn").disabled = !a || !chosen || !a.inProgress;
-  // Only ambiguous (and only worth asking about) while actively banning
-  // with a separate pick still pending to preview. Auto-uncheck right as
-  // it appears, so taps default to targeting the ban — the user can still
-  // check it to switch to previewing the pick instead.
-  const shouldShowToggle = isBan && a?.inProgress && st?.select?.upcomingPick;
-  if (shouldShowToggle && $("previewToggleWrap").hidden) $("previewPick").checked = false;
-  $("previewToggleWrap").hidden = !shouldShowToggle;
+  // Most queues run simultaneous bans, so a player's own ban stays
+  // isInProgress for the entire ban phase — tapping the grid during that
+  // whole window targets the ban (see above), so previewing a pick needs
+  // its own explicit action. Only shown when that's actually possible:
+  // banning, with a separate pick still pending.
+  const upcoming = st?.select?.upcomingPick;
+  $("previewPickBtn").hidden = !(isBan && a?.inProgress && upcoming);
+  $("previewPickBtn").disabled = !chosen;
 }
+$("previewPickBtn").onclick = () => send(false, st?.select?.upcomingPick);
 
 async function send(lock, action){
   const target = action || st?.select?.action; if (!target || !chosen) return;
