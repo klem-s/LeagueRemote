@@ -22,9 +22,18 @@ import (
 // auto-dismissed as a cancel: the app closed (this process exited) but
 // nothing actually installed. Deferring guarantees this process (and the
 // mutex it holds) is long gone before Setup ever checks.
+//
+// The delay uses "ping", not "timeout": timeout.exe checks whether stdin
+// is an actual console and aborts immediately with "Input redirection is
+// not supported" if not — which is exactly the case here, since this app
+// is a -H=windowsgui build with no console of its own. That made the
+// delay a no-op (cmd's "&" runs the next command regardless of the
+// previous one's exit code), silently recreating the original race. ping
+// has no such console dependency — the classic, reliable way to sleep in
+// a batch script for precisely this reason.
 func RunInstaller(path string) error {
 	cmd := exec.Command("cmd", "/c",
-		fmt.Sprintf(`timeout /t 2 /nobreak >nul & "%s" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`, path))
+		fmt.Sprintf(`ping -n 3 127.0.0.1 >nul & "%s" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`, path))
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return cmd.Start()
 }
