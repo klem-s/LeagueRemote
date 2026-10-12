@@ -50,7 +50,10 @@ Name: "{group}\Uninstall LoL Remote"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\LoL Remote"; Filename: "{app}\lol-remote.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\lol-remote.exe"; Description: "Launch LoL Remote"; Flags: nowait postinstall skipifsilent
+; No skipifsilent: the in-app Update button runs this installer with
+; /VERYSILENT, and it still needs to relaunch the app afterward — that's
+; the whole point of a one-click update.
+Filename: "{app}\lol-remote.exe"; Description: "Launch LoL Remote"; Flags: nowait postinstall
 
 [UninstallDelete]
 ; The app writes nothing else under {app} (no config/cache files there),

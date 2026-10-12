@@ -80,9 +80,10 @@ async function installUpdateClicked(btn, url){
   btn.textContent = "Downloading…";
   try {
     const err = await window.installUpdate(url);
-    if (err) { btn.disabled = false; btn.textContent = "Update"; alert(err); }
-    // On success this process exits shortly after and the installer
-    // window takes over — nothing left to do here.
+    if (err) { btn.disabled = false; btn.textContent = "Update"; alert(err); return; }
+    // Success: the update installs silently in the background and this
+    // app restarts itself once done. Nothing left to click here.
+    btn.textContent = "Updating…";
   } catch (e) {
     btn.disabled = false; btn.textContent = "Update";
     alert(String(e));

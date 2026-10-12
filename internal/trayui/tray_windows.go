@@ -132,7 +132,11 @@ func showPopup(info Info) {
 				return "Couldn't launch the installer: " + err.Error()
 			}
 			go func() {
-				time.Sleep(300 * time.Millisecond)
+				// Give the installer's own startup/self-extraction a head
+				// start before this process's mutex release matters — it
+				// runs fully silent now (no wizard to click through first
+				// buying that time the way it used to).
+				time.Sleep(600 * time.Millisecond)
 				os.Exit(0)
 			}()
 			return ""

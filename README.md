@@ -69,7 +69,7 @@ With Tailscale on the PC and phone, `tailscale serve --bg 53217` makes the app r
 - No console: a tray icon, "Show" menu item (address, PIN and QR in a window matching the mobile app's hextech theme) and "Quit".
 - If the WebView2 runtime isn't installed (rare — present by default on Windows 11 and deployed via Windows Update on most Windows 10 machines), falls back automatically to a system dialog.
 - Single instance only: relaunching the executable while it's already running just shows a message instead of opening a second icon/server.
-- Checks for a newer version on launch (GitHub releases); if one exists, an "Update" button downloads `LoLRemote-Setup.exe` from that release and launches it directly — no browser involved. The app exits itself right after so the installer can overwrite the running exe, and the installer relaunches it automatically once done. Falls back to just linking to the release page for an older release published before the installer existed.
+- Checks for a newer version on launch (GitHub releases); if one exists, an "Update" button downloads `LoLRemote-Setup.exe` from that release and runs it fully silently (`/VERYSILENT`) — no wizard, no browser, nothing to click through. The app exits itself right after so the installer can overwrite the running exe, and it relaunches the app automatically once done. Falls back to just linking to the release page for an older release published before the installer existed.
 
 ## Project structure
 
