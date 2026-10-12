@@ -10,11 +10,16 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
 
 const installerAssetName = "LoLRemote-Setup.exe"
+
+// HelperFlag, passed as os.Args[1], tells main() to skip the normal app
+// startup entirely and instead run RunInstallerHelper — see RunInstaller.
+const HelperFlag = "--run-installer"
 
 type Release struct {
 	Tag string
@@ -82,4 +87,37 @@ func DownloadInstaller(url string) (string, error) {
 		return "", err
 	}
 	return dest, nil
+}
+
+// RunInstaller re-execs the current binary as a detached helper (passing
+// HelperFlag and the installer's path) rather than launching the installer
+// directly from here. Launching it directly and exiting shortly after
+// raced its own AppMutex check against this process's exit — and routing
+// the delay through a cmd.exe one-liner to fix that turned out to have its
+// own nasty bug: cmd's /c quote-stripping rule breaks once there's more
+// than one quoted segment in the command line, which is exactly what
+// happened once Go's own argument-escaping wrapped the whole thing in an
+// extra outer layer of quotes around the already-quoted installer path.
+// With no console to show an error, it just silently did nothing.
+//
+// Re-execing this same Go binary with a plain argument list sidesteps
+// shell quoting entirely — os/exec talks to CreateProcess directly, no
+// cmd.exe involved.
+func RunInstaller(installerPath string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return exec.Command(self, HelperFlag, installerPath).Start()
+}
+
+// RunInstallerHelper is what main() calls when relaunched with HelperFlag:
+// wait for the original process (and the mutex it holds) to be gone, then
+// launch the real installer fully silently. This binary is a
+// -H=windowsgui build, so neither this relaunch nor the installer it
+// starts ever shows a console — nothing to hide, unlike the old cmd.exe
+// approach.
+func RunInstallerHelper(installerPath string) {
+	time.Sleep(2 * time.Second)
+	_ = exec.Command(installerPath, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART").Start()
 }

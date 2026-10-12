@@ -58,6 +58,14 @@ func checkForUpdate() trayui.Update {
 }
 
 func main() {
+	// A detached re-exec of this same binary, spawned by RunInstaller to
+	// finish an update — see updatecheck.RunInstallerHelper. Bypasses the
+	// normal app entirely, no tray icon, no server.
+	if len(os.Args) >= 3 && os.Args[1] == updatecheck.HelperFlag {
+		updatecheck.RunInstallerHelper(os.Args[2])
+		return
+	}
+
 	if !singleinstance.Acquire() {
 		trayui.ReportFatal("LoL Remote is already running — check your system tray.")
 		os.Exit(0)
