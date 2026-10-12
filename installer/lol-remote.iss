@@ -12,6 +12,12 @@ AppName=LoL Remote
 AppVersion={#AppVersion}
 AppPublisher=klem-s
 AppPublisherURL=https://github.com/klem-s/LeagueRemote
+; Same named mutex internal/singleinstance uses — if a running LoL Remote
+; wasn't already closed by whatever triggered this install (the in-app
+; "Update" button exits the process itself first, but a manually re-run
+; installer wouldn't), Setup detects it and asks the user to close it
+; rather than failing to overwrite the locked exe.
+AppMutex=Global\LoLRemote-7F3C2E7B-7E2E-4C2E-9C7F-9B1A2D3E4F5A
 ; Per-user install under %LOCALAPPDATA% — no admin rights / UAC prompt,
 ; same no-friction install this project has always had as a portable exe.
 DefaultDirName={localappdata}\Programs\LoLRemote

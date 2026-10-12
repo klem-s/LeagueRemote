@@ -54,7 +54,7 @@ func checkForUpdate() trayui.Update {
 	if err != nil || rel.Tag == "" || rel.Tag == version {
 		return trayui.Update{}
 	}
-	return trayui.Update{Tag: rel.Tag, URL: rel.URL}
+	return trayui.Update{Tag: rel.Tag, URL: rel.URL, InstallerURL: rel.InstallerURL}
 }
 
 func main() {

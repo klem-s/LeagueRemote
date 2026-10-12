@@ -51,6 +51,7 @@ h1{
   color:var(--gold); font:600 12px Inter,sans-serif; cursor:pointer;
 }
 .update:hover{background:var(--line)}
+.update:disabled{opacity:.5; cursor:default; background:var(--deep)}
 .ver{position:absolute; top:10px; right:12px; font-size:10px; color:var(--muted); opacity:.7}
 </style>
 </head>
@@ -73,5 +74,20 @@ h1{
   <p class="hint">Same Wi-Fi network as this PC</p>
   __UPDATE__
 </div>
+<script>
+async function installUpdateClicked(btn, url){
+  btn.disabled = true;
+  btn.textContent = "Downloading…";
+  try {
+    const err = await window.installUpdate(url);
+    if (err) { btn.disabled = false; btn.textContent = "Update"; alert(err); }
+    // On success this process exits shortly after and the installer
+    // window takes over — nothing left to do here.
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "Update";
+    alert(String(e));
+  }
+}
+</script>
 </body>
 </html>

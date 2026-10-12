@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/getlantern/systray"
@@ -22,6 +23,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 
 	"lolremote/internal/icon"
+	"lolremote/internal/updatecheck"
 )
 
 //go:embed popup.html
@@ -117,6 +119,25 @@ func showPopup(info Info) {
 		// navigating the popup itself away from its own content.
 		_ = w.Bind("openurl", func(target string) { _ = exec.Command("cmd", "/c", "start", "", target).Start() })
 
+		// Downloads and launches the installer directly — no browser
+		// involved. Returns "" on success (the caller then exits this
+		// process so the installer can overwrite the running exe) or an
+		// error message the popup shows instead.
+		_ = w.Bind("installUpdate", func(url string) string {
+			path, err := updatecheck.DownloadInstaller(url)
+			if err != nil {
+				return "Download failed: " + err.Error()
+			}
+			if err := updatecheck.RunInstaller(path); err != nil {
+				return "Couldn't launch the installer: " + err.Error()
+			}
+			go func() {
+				time.Sleep(300 * time.Millisecond)
+				os.Exit(0)
+			}()
+			return ""
+		})
+
 		w.SetHtml(renderPopup(info))
 		w.Run()
 	}()
@@ -131,10 +152,19 @@ func renderPopup(info Info) string {
 	}
 	updateBlock := ""
 	if info.Update.Tag != "" {
-		updateBlock = fmt.Sprintf(
-			`<button class="update" onclick="window.openurl('%s')">Update available: %s</button>`,
-			strings.ReplaceAll(info.Update.URL, "'", ""), info.Update.Tag,
-		)
+		if info.Update.InstallerURL != "" {
+			updateBlock = fmt.Sprintf(
+				`<button class="update" onclick="installUpdateClicked(this, '%s')">Update to %s</button>`,
+				strings.ReplaceAll(info.Update.InstallerURL, "'", ""), info.Update.Tag,
+			)
+		} else {
+			// Older release with no installer asset published — fall back
+			// to the plain "open the release page" link.
+			updateBlock = fmt.Sprintf(
+				`<button class="update" onclick="window.openurl('%s')">Update available: %s</button>`,
+				strings.ReplaceAll(info.Update.URL, "'", ""), info.Update.Tag,
+			)
+		}
 	}
 	html := popupTemplate
 	html = strings.ReplaceAll(html, "__URL__", info.URL)
