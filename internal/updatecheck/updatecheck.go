@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -83,15 +82,4 @@ func DownloadInstaller(url string) (string, error) {
 		return "", err
 	}
 	return dest, nil
-}
-
-// RunInstaller launches a downloaded installer fully silently — no wizard,
-// no progress window, nothing to click through. /VERYSILENT suppresses all
-// UI, /SUPPRESSMSGBOXES auto-answers anything that would otherwise be a
-// message box, /NORESTART skips any reboot prompt (irrelevant here but
-// harmless). The installer's own [Run] entry relaunches the app once done.
-// The caller is expected to exit this process shortly after — the
-// installer can't overwrite lol-remote.exe while it's still running.
-func RunInstaller(path string) error {
-	return exec.Command(path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART").Start()
 }

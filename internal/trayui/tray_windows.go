@@ -122,7 +122,10 @@ func showPopup(info Info) {
 		// Downloads and launches the installer directly — no browser
 		// involved. Returns "" on success (the caller then exits this
 		// process so the installer can overwrite the running exe) or an
-		// error message the popup shows instead.
+		// error message the popup shows instead. RunInstaller itself
+		// defers the actual silent install by a couple seconds (see its
+		// doc comment) — this process just needs to be gone well before
+		// then, not instantly, so the short delay here is only cosmetic.
 		_ = w.Bind("installUpdate", func(url string) string {
 			path, err := updatecheck.DownloadInstaller(url)
 			if err != nil {
@@ -132,11 +135,7 @@ func showPopup(info Info) {
 				return "Couldn't launch the installer: " + err.Error()
 			}
 			go func() {
-				// Give the installer's own startup/self-extraction a head
-				// start before this process's mutex release matters — it
-				// runs fully silent now (no wizard to click through first
-				// buying that time the way it used to).
-				time.Sleep(600 * time.Millisecond)
+				time.Sleep(250 * time.Millisecond)
 				os.Exit(0)
 			}()
 			return ""
